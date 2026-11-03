@@ -151,6 +151,8 @@ export const CustomerService = {
       const customer = await CustomerModel.findByPhone(tx, phone);
       if (!customer) throw notFound('Customer not found.');
       await CustomerModel.update(tx, customer.id, { pinHash });
+      // Whoever had the old PIN (including a thief) must sign in again.
+      await tx.refreshToken.updateMany({ where: { subjectId: customer.id, revokedAt: null }, data: { revokedAt: new Date() } });
     });
   },
 

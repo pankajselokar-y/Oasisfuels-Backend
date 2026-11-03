@@ -3,6 +3,7 @@ import { hashSecret, verifySecret } from '../lib/password.js';
 import type { StaffRole } from '../generated/prisma/client.js';
 import { StaffModel } from '../models/staff.model.js';
 import { badRequest, conflict, notFound } from '../utils/AppError.js';
+import { SessionService } from './session.service.js';
 import { isUniqueViolation } from '../utils/prismaErrors.js';
 
 const USERNAME_TAKEN = 'That username is already taken.';
@@ -34,11 +35,13 @@ export const StaffService = {
   async update(id: string, input: { name?: string; username?: string; password?: string }) {
     if (!(await StaffModel.findById(prisma, id))) throw notFound('Staff account not found.');
     try {
-      return await StaffModel.update(prisma, id, {
+      const updated = await StaffModel.update(prisma, id, {
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.username !== undefined ? { username: input.username.toLowerCase() } : {}),
         ...(input.password ? { passwordHash: await hashSecret(input.password) } : {}),
       });
+      if (input.password) await SessionService.revokeAll(id); // an admin set a new password: old sessions end
+      return updated;
     } catch (error) {
       if (isUniqueViolation(error)) throw conflict(USERNAME_TAKEN);
       throw error;
@@ -55,7 +58,9 @@ export const StaffService = {
         throw badRequest('At least one active admin is required.');
       }
     }
-    return StaffModel.update(prisma, id, { active });
+    const updated = await StaffModel.update(prisma, id, { active });
+    if (!active) await SessionService.revokeAll(id);
+    return updated;
   },
 
   async changeOwnPassword(id: string, currentPassword: string, newPassword: string) {

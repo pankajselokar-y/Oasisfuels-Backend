@@ -1,11 +1,11 @@
 import { prisma } from '../lib/prisma.js';
-import { signToken } from '../lib/jwt.js';
 import { hashSecret, verifySecret } from '../lib/password.js';
 import { CustomerModel } from '../models/customer.model.js';
 import { StaffModel } from '../models/staff.model.js';
 import { forbidden, unauthorized } from '../utils/AppError.js';
 import { CustomerService, type NewAccount } from './customer.service.js';
 import { OtpService } from './otp.service.js';
+import { SessionService } from './session.service.js';
 
 // Compared against when the account does not exist, so response time does not reveal which
 // phone numbers or usernames are registered.
@@ -16,7 +16,7 @@ export const AuthService = {
     const customer = await CustomerModel.findByPhone(prisma, phone);
     const valid = await verifySecret(pin, customer?.pinHash ?? DUMMY_HASH);
     if (!customer || !valid) throw unauthorized('Incorrect phone number or PIN.');
-    return { customer, token: signToken({ sub: customer.id, role: 'CUSTOMER' }) };
+    return { customer, ...(await SessionService.start({ id: customer.id, role: 'CUSTOMER' })) };
   },
 
   /** Self sign-up: the phone number must first be proven with an SMS code. */
@@ -24,7 +24,7 @@ export const AuthService = {
     const { otp, ...account } = input;
     const consumeOtpId = await OtpService.verify(account.phone, 'REGISTER', otp);
     const customer = await CustomerService.createAccount({ ...account, consumeOtpId });
-    return { customer, token: signToken({ sub: customer.id, role: 'CUSTOMER' }) };
+    return { customer, ...(await SessionService.start({ id: customer.id, role: 'CUSTOMER' })) };
   },
 
   async resetCustomerPin(phone: string, otp: string, newPin: string) {
@@ -37,6 +37,6 @@ export const AuthService = {
     const valid = await verifySecret(password, staff?.passwordHash ?? DUMMY_HASH);
     if (!staff || !valid) throw unauthorized('Incorrect username or password.');
     if (!staff.active) throw forbidden('This account has been disabled. Contact an admin.');
-    return { staff, token: signToken({ sub: staff.id, role: staff.role }) };
+    return { staff, ...(await SessionService.start({ id: staff.id, role: staff.role })) };
   },
 };

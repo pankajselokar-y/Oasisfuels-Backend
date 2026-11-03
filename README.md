@@ -1,13 +1,12 @@
 # Pump Rewards — Backend API
 
 REST API for the Pump Rewards fuel-loyalty app. **Express 5 · Prisma 7 · PostgreSQL · Zod · JWT**, written in TypeScript.
-It implements the business rules that currently live in the Expo app's local storage (`../src/storage/*`), so the app can
+It implements the business rules that currently live in the Expo app's local storage (`src/storage/*` in the Expo app repository), so the app can
 move from on-device data to a shared database.
 
 ## Quick start
 
 ```bash
-cd backend
 cp .env.example .env            # then edit DATABASE_URL / JWT_SECRET if needed
 docker compose up -d            # local PostgreSQL 16 (or point DATABASE_URL at your own server)
 npm install                     # also generates the Prisma client
@@ -77,8 +76,10 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `POST /auth/otp/verify` | `{ phone, purpose, otp }` — checks a code **without using it up** (200 `{ verified: true }`, or 400 `Incorrect code.`); optional pre-check; `register` verifies the code itself |
 | `POST /auth/customer/register` | `{ name, phone, pin, otp, vehicle?: { number, model? }, referralCode? }` — `otp` is the code sent to `phone`; referrer earns the bonus |
 | `POST /auth/customer/reset-pin` | `{ phone, otp, newPin }` — forgot-PIN, after `otp/send` with `RESET_PIN` |
-| `POST /auth/customer/login` | `{ phone, pin }` |
-| `POST /auth/staff/login` | `{ username, password }` |
+| `POST /auth/customer/login` | `{ phone, pin }` → `{ token, refreshToken, customer }` |
+| `POST /auth/staff/login` | `{ username, password }` → `{ token, refreshToken, staff }` |
+| `POST /auth/refresh` | `{ refreshToken }` → a new `{ token, refreshToken }` pair. The access `token` lasts 1 hour; the refresh token lasts 30 days from last use and works **once** (each refresh issues a new one). Re-using an old one after 30 s ends every session of that account |
+| `POST /auth/logout` | `{ refreshToken }` — ends this device's session |
 | `GET /auth/me` | who am I (customer incl. dashboard stats, or staff) |
 
 **Customer (own account)** — role `CUSTOMER`
@@ -102,7 +103,7 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `GET /customers/:id`, `GET /customers/:id/history` | profile + ledger |
 | `GET /fuel-claims?status=`, `GET /fuel-claims/:id`, `GET /fuel-claims/:id/photo` (add `?as=dataUri` for JSON) | review queue |
 | `POST /fuel-claims/:id/approve` | `{ amountRupees? }` — credits points (defaults to the claimed amount) |
-| `POST /fuel-claims/:id/reject` | `{ reason? }` |
+| `POST /fuel-claims/:id/reject` | `{ reason? }` — the reason is shown to the customer next to the rejected upload |
 | `GET /redemption-requests?status=` | queue |
 | `POST /redemption-requests/:id/approve` \| `/reject` | approve deducts points and issues the item |
 | `PATCH /staff/me/password` | `{ currentPassword, newPassword }` |
@@ -116,9 +117,9 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | | |
 |---|---|
 | `GET /reports/dashboard` | totals, pending counts, items issued in the last 45 days |
-| `GET /reports/issued-items?days=45` | items handed over; `days` = a number or `all`; includes summary and per-item counts |
+| `GET /reports/issued-items?days=45` (or `?from=YYYY-MM-DD&to=YYYY-MM-DD` for a custom range) | items handed over; `days` = a number or `all`; includes summary and per-item counts |
 | `GET/POST /staff`, `PATCH /staff/:id`, `PATCH /staff/:id/active` | manage staff (edit name/username/password; enable/disable) |
-| `PATCH /settings` | `fuelRatePerLitre`, `minFuelAmountRupees`, `referralBonusPoints` (`GET /settings` is open to all signed-in users) |
+| `PATCH /settings` | `fuelRatePerLitre`, `minFuelAmountRupees`, `referralBonusPoints` (`GET /settings` is public, so the sign-up screen can show the real bonus) |
 
 ## Business rules (ported from the app)
 
@@ -149,8 +150,8 @@ POST /auth/customer/register  { …, otp }         →  account + token
 POST /auth/customer/reset-pin { phone, otp, newPin }
 ```
 
-**Expo app:** the sign-up screen calls `send` and `verify` through `src/api/otp.js`. Point the app at this server with
-`EXPO_PUBLIC_API_URL` in the app's `.env.local` (see the root `.env.example`) and restart Expo with `npx expo start -c`.
+**Expo app:** the sign-up screen calls `send` and `verify` through `src/api/otp.js` in the Expo app repository. Point the app at this server with
+`EXPO_PUBLIC_API_URL` in the app's `.env.local` (see its `.env.example`) and restart Expo with `npx expo start -c`.
 A real phone needs your PC's Wi-Fi IP (not `localhost`), and Windows Firewall must allow port 4100.
 
 - **Setup:** put your key in `.env` as `FAST2SMS_API_KEY` (Fast2SMS → *Settings → API Key*). It is only ever read from the environment.

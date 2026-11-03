@@ -16,6 +16,9 @@ export const DEFAULT_SETTINGS = {
   referralBonusPoints: 100,
 } as const;
 
+// How long a device stays signed in without opening the app. Each refresh restarts the clock.
+export const REFRESH_TOKEN_DAYS = 30;
+
 // One-time passcodes sent by SMS. Every SMS costs money, so sending is deliberately tightly limited.
 export const OTP = {
   length: 6,

@@ -27,9 +27,9 @@ reportRoutes.get('/dashboard', admin.dashboard);
 reportRoutes.get('/issued-items', validate({ query: issuedItemsQuery }), admin.issuedItems);
 
 export const settingRoutes = Router();
-settingRoutes.use(authenticate);
+// The program rules (rate, minimum, referral bonus) are not secret, and the sign-up screen shows them before login.
 settingRoutes.get('/', admin.getSettings);
-settingRoutes.patch('/', adminOnly, validate({ body: updateSettingsBody }), admin.updateSettings);
+settingRoutes.patch('/', authenticate, adminOnly, validate({ body: updateSettingsBody }), admin.updateSettings);
 
 export const rewardRoutes = Router();
 rewardRoutes.get('/', authenticate, admin.listRewards);

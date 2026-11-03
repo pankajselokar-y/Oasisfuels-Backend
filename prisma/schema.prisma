@@ -201,6 +201,21 @@ model OtpCode {
   @@index([phone, purpose, createdAt])
 }
 
+/// A signed-in device session. The app keeps a short-lived access token and swaps this long-lived refresh token for a new
+/// pair when it expires; each use rotates it. Only a hash of the token is stored, never the token itself.
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  tokenHash String    @unique
+  /// The customer or staff member this session belongs to.
+  subjectId String    @db.Uuid
+  isStaff   Boolean
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([subjectId])
+}
+
 /// Single-row table (id = 1) holding the program rules that admins can tune.
 model Setting {
   id                  Int      @id @default(1)

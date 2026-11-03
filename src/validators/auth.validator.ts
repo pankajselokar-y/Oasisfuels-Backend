@@ -37,4 +37,6 @@ export const checkRegistrationBody = z.object({
   referralCode: z.string().trim().optional(),
 });
 
+export const refreshBody = z.object({ refreshToken: z.string().min(20, 'Invalid session.').max(200) });
+
 export const resetPinBody = z.object({ phone, otp, newPin: pin });

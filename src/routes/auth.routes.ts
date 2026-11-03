@@ -6,6 +6,7 @@ import { validate } from '../middlewares/validate.js';
 import {
   checkRegistrationBody,
   customerLoginBody,
+  refreshBody,
   registerBody,
   resetPinBody,
   sendOtpBody,
@@ -24,4 +25,6 @@ authRoutes.post('/customer/reset-pin', validate({ body: resetPinBody }), auth.re
 authRoutes.post('/customer/login', validate({ body: customerLoginBody }), loginAttemptLimiter, auth.customerLogin);
 authRoutes.post('/customer/register', validate({ body: registerBody }), auth.registerCustomer);
 authRoutes.post('/staff/login', validate({ body: staffLoginBody }), loginAttemptLimiter, auth.staffLogin);
+authRoutes.post('/refresh', validate({ body: refreshBody }), auth.refresh);
+authRoutes.post('/logout', validate({ body: refreshBody }), auth.logout);
 authRoutes.get('/me', authenticate, auth.me);

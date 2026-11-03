@@ -33,8 +33,8 @@ export const changeOwnPassword: RequestHandler = async (req, res) => {
 // --- Reports (admin) --------------------------------------------------------------------
 
 export const issuedItems: RequestHandler = async (req, res) => {
-  const { days } = queryOf<{ days: number | 'all' }>(req);
-  const report = await ReportService.issuedItems(days === 'all' ? null : days);
+  const { days, from, to } = queryOf<{ days: number | 'all'; from?: Date; to?: Date }>(req);
+  const report = await ReportService.issuedItems({ days: days === 'all' ? null : days, from, to });
   ok(res, { ...report, items: report.items.map(redemptionDto) });
 };
 

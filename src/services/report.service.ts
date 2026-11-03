@@ -12,9 +12,12 @@ export const ReportService = {
    * Rewards handed over to customers. Nothing is ever purged, so any window — including the
    * default 45 days — can be answered. `days` of null means all time.
    */
-  async issuedItems(days: number | null) {
-    const since = days ? new Date(Date.now() - days * DAY_MS) : null;
-    const items = await RedemptionModel.listIssued(prisma, since);
+  async issuedItems(window: { days: number | null; from?: Date; to?: Date }) {
+    // An explicit from/to range wins over "last N days".
+    const custom = Boolean(window.from || window.to);
+    const since = custom ? (window.from ?? null) : window.days ? new Date(Date.now() - window.days * DAY_MS) : null;
+    const until = custom ? (window.to ?? null) : null;
+    const items = await RedemptionModel.listIssued(prisma, since, until);
 
     const byItem = new Map<string, { rewardId: string; name: string; icon: string; count: number }>();
     for (const item of items) {
@@ -29,7 +32,9 @@ export const ReportService = {
     }
 
     return {
-      periodDays: days,
+      periodDays: custom ? null : window.days,
+      from: since,
+      to: until,
       summary: {
         totalItems: items.length,
         totalPoints: items.reduce((sum, i) => sum + i.points, 0),

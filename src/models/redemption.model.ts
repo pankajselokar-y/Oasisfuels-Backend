@@ -56,9 +56,12 @@ export const RedemptionModel = {
     db.redemptionRequest.count({ where: { status: 'APPROVED', resolvedAt: { gte: since } } }),
 
   /** Approved requests resolved on/after `since` (or all time when null), newest first. */
-  listIssued: (db: Db, since: Date | null) =>
+  listIssued: (db: Db, since: Date | null, until: Date | null = null) =>
     db.redemptionRequest.findMany({
-      where: { status: 'APPROVED', ...(since ? { resolvedAt: { gte: since } } : {}) },
+      where: {
+        status: 'APPROVED',
+        ...(since || until ? { resolvedAt: { ...(since ? { gte: since } : {}), ...(until ? { lte: until } : {}) } } : {}),
+      },
       include: withPeople,
       orderBy: { resolvedAt: 'desc' },
     }),

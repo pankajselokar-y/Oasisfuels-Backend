@@ -1,0 +1,32 @@
+# Render Blueprint for the Oasis Fuel Rewards API.
+# Render dashboard → New → Blueprint → pick this repository. You will be asked for the two secrets marked `sync: false`.
+services:
+  - type: web
+    name: oasis-fuel-api
+    runtime: node
+    region: virginia # keep in the same region as your PostgreSQL database so the internal URL works
+    plan: starter # a persistent disk (fuel-proof photos) and pre-deploy migrations need a paid plan
+    buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: npm run db:deploy # applies new Prisma migrations before each release
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    disk:
+      name: uploads
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: NODE_ENV
+        value: production
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL # the database's *Internal* URL (Render dashboard → your PostgreSQL → Connections)
+        sync: false
+      - key: FAST2SMS_API_KEY
+        sync: false

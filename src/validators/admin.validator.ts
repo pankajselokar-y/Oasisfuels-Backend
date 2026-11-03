@@ -33,8 +33,16 @@ export const updateSettingsBody = z
   .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'Nothing to update.' });
 
 /** `days` is a number of days, or "all" for the whole history. Defaults to the 45-day window. */
-export const issuedItemsQuery = z.object({
-  days: z
-    .union([z.literal('all'), z.coerce.number().int().positive().max(3650)])
-    .default(45),
-});
+export const issuedItemsQuery = z
+  .object({
+    days: z.union([z.literal('all'), z.coerce.number().int().positive().max(3650)]).default(45),
+    /** Custom range, as YYYY-MM-DD. When given it replaces `days`; `to` includes the whole of that day. */
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+  })
+  .transform((q) => ({
+    days: q.days,
+    from: q.from ? new Date(`${q.from}T00:00:00.000Z`) : undefined,
+    to: q.to ? new Date(`${q.to}T23:59:59.999Z`) : undefined,
+  }))
+  .refine((q) => !q.from || !q.to || q.from <= q.to, { message: 'The start date must be on or before the end date.' });
