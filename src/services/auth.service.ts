@@ -1,0 +1,42 @@
+import { prisma } from '../lib/prisma.js';
+import { signToken } from '../lib/jwt.js';
+import { hashSecret, verifySecret } from '../lib/password.js';
+import { CustomerModel } from '../models/customer.model.js';
+import { StaffModel } from '../models/staff.model.js';
+import { forbidden, unauthorized } from '../utils/AppError.js';
+import { CustomerService, type NewAccount } from './customer.service.js';
+import { OtpService } from './otp.service.js';
+
+// Compared against when the account does not exist, so response time does not reveal which
+// phone numbers or usernames are registered.
+const DUMMY_HASH = await hashSecret('not-a-real-secret');
+
+export const AuthService = {
+  async customerLogin(phone: string, pin: string) {
+    const customer = await CustomerModel.findByPhone(prisma, phone);
+    const valid = await verifySecret(pin, customer?.pinHash ?? DUMMY_HASH);
+    if (!customer || !valid) throw unauthorized('Incorrect phone number or PIN.');
+    return { customer, token: signToken({ sub: customer.id, role: 'CUSTOMER' }) };
+  },
+
+  /** Self sign-up: the phone number must first be proven with an SMS code. */
+  async registerCustomer(input: Omit<NewAccount, 'consumeOtpId'> & { otp: string }) {
+    const { otp, ...account } = input;
+    const consumeOtpId = await OtpService.verify(account.phone, 'REGISTER', otp);
+    const customer = await CustomerService.createAccount({ ...account, consumeOtpId });
+    return { customer, token: signToken({ sub: customer.id, role: 'CUSTOMER' }) };
+  },
+
+  async resetCustomerPin(phone: string, otp: string, newPin: string) {
+    const otpId = await OtpService.verify(phone, 'RESET_PIN', otp);
+    await CustomerService.resetPin(phone, newPin, otpId);
+  },
+
+  async staffLogin(username: string, password: string) {
+    const staff = await StaffModel.findByUsername(prisma, username);
+    const valid = await verifySecret(password, staff?.passwordHash ?? DUMMY_HASH);
+    if (!staff || !valid) throw unauthorized('Incorrect username or password.');
+    if (!staff.active) throw forbidden('This account has been disabled. Contact an admin.');
+    return { staff, token: signToken({ sub: staff.id, role: staff.role }) };
+  },
+};

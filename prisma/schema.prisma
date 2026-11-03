@@ -1,0 +1,211 @@
+// Pump Rewards — PostgreSQL schema (Prisma 7).
+// The connection URL lives in prisma.config.ts, not here.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StaffRole {
+  ADMIN
+  CASHIER
+}
+
+enum TransactionType {
+  EARN
+  REDEEM
+}
+
+enum TransactionSource {
+  FUEL_ENTRY
+  FUEL_CLAIM
+  REFERRAL
+  REDEMPTION
+}
+
+enum OtpPurpose {
+  REGISTER
+  RESET_PIN
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Cashiers and admins. Created only by an admin, never by self sign-up.
+model Staff {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  /// Stored lowercase so logins are case-insensitive.
+  username     String    @unique
+  passwordHash String
+  role         StaffRole
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  transactions       PointTransaction[]
+  redemptionRequests RedemptionRequest[]
+  fuelClaims         FuelClaim[]
+}
+
+model Customer {
+  id             String   @id @default(uuid()) @db.Uuid
+  /// 10-digit mobile number; doubles as the customer's login and referral code.
+  phone          String   @unique
+  pinHash        String
+  name           String
+  /// Spendable balance.
+  points         Int      @default(0)
+  /// Total ever earned; drives the loyalty tier and never goes down.
+  lifetimePoints Int      @default(0)
+  referredById   String?  @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  referredBy Customer?  @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals  Customer[] @relation("Referrals")
+
+  vehicles           Vehicle[]
+  transactions       PointTransaction[]
+  redemptionRequests RedemptionRequest[]
+  fuelClaims         FuelClaim[]
+
+  @@index([name])
+}
+
+model Vehicle {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @db.Uuid
+  model      String   @default("")
+  /// Standard spaced form, e.g. "MH 36 AD 2861".
+  number     String
+  /// Number without spaces, used for uniqueness and search.
+  numberKey  String
+  createdAt  DateTime @default(now())
+
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  fuelClaims FuelClaim[]
+
+  @@unique([customerId, numberKey])
+  @@index([numberKey])
+}
+
+/// Reward catalog (the "schemes"). `id` is a stable slug such as "thermos-cup-set".
+model Reward {
+  id        String  @id
+  name      String
+  points    Int
+  icon      String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  redemptionRequests RedemptionRequest[]
+
+  @@index([sortOrder])
+}
+
+/// Append-only points ledger. Rows are never updated or deleted, so any history window
+/// (including the 45-day issue log) can always be reconstructed.
+model PointTransaction {
+  id               String            @id @default(uuid()) @db.Uuid
+  customerId       String            @db.Uuid
+  type             TransactionType
+  source           TransactionSource
+  label            String
+  amount           Int
+  fuelAmountRupees Int?
+  /// The staff member who recorded or approved it, when there was one.
+  performedById    String?           @db.Uuid
+  createdAt        DateTime          @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  performedBy Staff?   @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([customerId, createdAt])
+}
+
+model RedemptionRequest {
+  id           String       @id @default(uuid()) @db.Uuid
+  customerId   String       @db.Uuid
+  rewardId     String
+  /// Snapshots, so the log stays accurate if the catalog changes later.
+  rewardName   String
+  rewardIcon   String
+  points       Int
+  status       ReviewStatus @default(PENDING)
+  requestedAt  DateTime     @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?      @db.Uuid
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reward     Reward   @relation(fields: [rewardId], references: [id])
+  resolvedBy Staff?   @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, requestedAt])
+  @@index([customerId])
+  @@index([status, resolvedAt])
+}
+
+/// A customer's "I just filled fuel" proof: dashboard photo + GPS, reviewed by staff.
+model FuelClaim {
+  id                  String       @id @default(uuid()) @db.Uuid
+  customerId          String       @db.Uuid
+  vehicleId           String?      @db.Uuid
+  vehicleModel        String       @default("")
+  vehicleNumber       String
+  claimedAmountRupees Int
+  latitude            Float
+  longitude           Float
+  accuracy            Float?
+  /// Path of the stored photo, relative to UPLOAD_DIR.
+  photoPath           String
+  photoMime           String
+  status              ReviewStatus @default(PENDING)
+  rejectionReason     String?
+  submittedAt         DateTime     @default(now())
+  resolvedAt          DateTime?
+  resolvedById        String?      @db.Uuid
+  approvedAmountRupees Int?
+  pointsAwarded       Int?
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle    Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  resolvedBy Staff?   @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, submittedAt])
+  @@index([customerId, submittedAt])
+}
+
+/// One-time codes sent by SMS. Only a keyed hash of the code is stored, never the code itself.
+/// Short-lived working data (not audit data): rows older than a day are purged opportunistically.
+model OtpCode {
+  id         String     @id @default(uuid()) @db.Uuid
+  phone      String
+  purpose    OtpPurpose
+  codeHash   String
+  /// Wrong guesses so far; the code is dead after too many.
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([phone, purpose, createdAt])
+}
+
+/// Single-row table (id = 1) holding the program rules that admins can tune.
+model Setting {
+  id                  Int      @id @default(1)
+  fuelRatePerLitre    Int      @default(100)
+  minFuelAmountRupees Int      @default(500)
+  referralBonusPoints Int      @default(100)
+  updatedAt           DateTime @updatedAt
+}
