@@ -36,3 +36,26 @@ Your API base URL is `https://<your-service>.onrender.com/api/v1`.
 Push to `main` → Render redeploys automatically (and applies new migrations).
 
 Your API base URL is `https://<your-service>.onrender.com/api/v1` — put it in the Expo app's `EXPO_PUBLIC_API_URL` (see the app repository's `DEPLOY.md`).
+
+## Deploying on Vercel (alternative to Render)
+
+`vercel.json`, `api/index.js` and `public/` make this repository deployable on Vercel as a serverless function. In the
+Vercel project settings use **Framework Preset: Other** and leave the build/output settings empty (they come from `vercel.json`).
+
+Environment variables (Project → Settings → Environment Variables, enable for Production **and** Preview):
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Render's **External** URL with `?sslmode=require` (Vercel cannot use the internal one) |
+| `JWT_SECRET` | a random string of at least 32 characters |
+| `FAST2SMS_API_KEY` | your Fast2SMS key (production refuses to start without it) |
+| `CORS_ORIGINS` | `*`, or your app's origins separated by commas |
+
+Database migrations are **not** run by Vercel. Run them from your machine whenever the schema changes:
+`npm run db:deploy` (with `DATABASE_URL` pointing at the database).
+
+Limits compared with Render:
+- Fuel-proof photos are written to `/tmp`, which Vercel wipes between invocations, so they do **not** persist. Use Render (persistent
+  disk) or move photo storage into the database / Vercel Blob before relying on photos on Vercel.
+- Rate limits are counted per serverless instance, so they are weaker than on a single server.
+- Each instance keeps at most 3 database connections.

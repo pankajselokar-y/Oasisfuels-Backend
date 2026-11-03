@@ -10,7 +10,8 @@ const schema = z
     /** Lifetime of the access token. Short, because the app silently renews it with its refresh token. */
     JWT_EXPIRES_IN: z.string().default('1h'),
     CORS_ORIGINS: z.string().default('*'),
-    UPLOAD_DIR: z.string().default('uploads'),
+    /** On Vercel only /tmp is writable (and it is wiped between invocations), so photos do not persist there. */
+    UPLOAD_DIR: z.string().default(process.env['VERCEL'] ? '/tmp/uploads' : 'uploads'),
     DEFAULT_CUSTOMER_PIN: z.string().regex(/^\d{4}$/, 'DEFAULT_CUSTOMER_PIN must be 4 digits').default('1234'),
     /** Without a key, OTP codes are printed to the server console instead of sent (development only). */
     FAST2SMS_API_KEY: z
