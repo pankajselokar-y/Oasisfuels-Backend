@@ -52,6 +52,8 @@ export const CustomerService = {
     const vehicle = input.vehicle?.number?.trim() ? prepareVehicle(input.vehicle) : null;
     const pinHash = await hashSecret(input.pin);
     const referralPhone = input.referralCode?.trim() || null;
+    // Read before the transaction starts: fewer queries inside it means a shorter transaction.
+    const referralBonus = referralPhone ? (await SettingModel.get(prisma)).referralBonusPoints : 0;
 
     try {
       return await prisma.$transaction(async (tx) => {
@@ -79,16 +81,15 @@ export const CustomerService = {
 
         // Both sides win: the friend who shared the code and the friend who joined with it each get the bonus.
         if (referrer) {
-          const settings = await SettingModel.get(tx);
           await creditPoints(tx, {
             customerId: referrer.id,
-            points: settings.referralBonusPoints,
+            points: referralBonus,
             label: `Referral bonus: ${created.name} joined using your code`,
             source: 'REFERRAL',
           });
           await creditPoints(tx, {
             customerId: created.id,
-            points: settings.referralBonusPoints,
+            points: referralBonus,
             label: `Welcome bonus: you joined using ${referrer.name}'s referral code`,
             source: 'REFERRAL',
           });
