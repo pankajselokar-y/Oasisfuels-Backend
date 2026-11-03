@@ -89,8 +89,7 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `PATCH /me/pin` | `{ currentPin, newPin }` |
 | `GET /me/history` | points ledger, newest first |
 | `GET/POST /me/vehicles`, `PATCH/DELETE /me/vehicles/:vehicleId` | multiple vehicles; plate format validated |
-| `POST /fuel-claims` | `vehicleId, amountRupees, latitude, longitude, accuracy?` + the photo, either **multipart** `photo` file or JSON `photoDataUri` (base64 data URI, what the app sends) |
-| `GET /fuel-claims/mine` | my uploads and their status |
+| `GET /fuel-claims/mine` | my fuel proofs (recorded by the cashier with each fill-up) and their status |
 | `POST /redemption-requests` | `{ rewardId }` |
 | `GET /redemption-requests/mine` | my requests |
 | `GET /rewards` | the reward catalog (any signed-in user) |
@@ -103,7 +102,7 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `GET /customers/:id`, `GET /customers/:id/history` | profile + ledger |
 | `GET /fuel-claims?status=`, `GET /fuel-claims/:id`, `GET /fuel-claims/:id/photo` (add `?as=dataUri` for JSON) | review queue |
 | `POST /fuel-claims/:id/approve` | `{ amountRupees? }` — credits points (defaults to the claimed amount) |
-| `POST /fuel-claims/:id/reject` | `{ reason? }` — the reason is shown to the customer next to the rejected upload |
+| `POST /fuel-claims/:id/reject` | `{ reason? }` — the reason is shown to the customer next to the rejected proof |
 | `GET /redemption-requests?status=` | queue |
 | `POST /redemption-requests/:id/approve` \| `/reject` | approve deducts points and issues the item |
 | `PATCH /staff/me/password` | `{ currentPassword, newPassword }` |
@@ -111,7 +110,7 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 **Cashier only**
 | | |
 |---|---|
-| `POST /fuel-entries` | `{ customerId, amountRupees }` **or** `{ customerId, litres }` → points + `unlockedRewards` |
+| `POST /fuel-entries` | `{ customerId, amountRupees }` **or** `{ customerId, litres }`, plus `proof: { vehicleId \| vehicleNumber, latitude, longitude, accuracy?, photoDataUri }` (the dashboard photo as a base64 data URI). → points + `unlockedRewards`. The proof is stored as an already-approved fuel proof; the app always sends it |
 
 **Admin only**
 | | |
@@ -132,8 +131,11 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 - **Vehicles:** `MH 36 AD 2861`, `MH 48 D 9886` and Bharat-series `22 BH 8667 CD` formats; stored spaced and uppercased; unique per customer.
 - **Redemption:** customers *request*; points are deducted only when staff approve. Points promised to pending requests aren't
   spendable twice, a customer can't have two pending requests for one reward, and an approval can't overdraw (`CHECK points >= 0`).
-- **Fuel proofs:** vehicle + amount + dashboard photo + GPS are all required; one pending proof per customer; staff may correct the
-  amount on approval. Photos are checked by file signature (JPEG/PNG/WebP, ≤ 5 MB) and stored under `UPLOAD_DIR`.
+- **Fuel proofs:** only cashiers create them, as part of recording a fill-up: vehicle + amount + dashboard photo + GPS. The proof is
+  stored already approved (the cashier vouches for it) and shows in the customer's history. A fill-up that fails (bad plate,
+  amount below the minimum, not an image...) records nothing and leaves no photo behind. Proofs submitted by customers before
+  this change can still be approved or rejected by staff. Photos are checked by file signature (JPEG/PNG/WebP, ≤ 5 MB) and
+  stored under `UPLOAD_DIR`.
 - **Issue log:** nothing is ever deleted — the points ledger and redemption rows are append-only/retained — so the 45-day window
   (or any other) can always be answered.
 - **Audit trail:** ledger rows, approvals and rejections record which staff member did them.
@@ -173,10 +175,10 @@ A real phone needs your PC's Wi-Fi IP (not `localhost`), and Windows Firewall mu
   A 4-digit PIN is inherently weak — the limiter is what protects it. Behind a reverse proxy, set `app.set('trust proxy', …)`.
 - Set a strong `JWT_SECRET` (≥ 32 chars is enforced in production) and a specific `CORS_ORIGINS`.
 - Change the seeded demo passwords/PINs before any real deployment.
-- Fuel photos are served only to staff and to the customer who uploaded them.
+- Fuel photos are served only to staff and to the customer they belong to. Customers cannot upload them: only cashiers do, with a fuel entry.
 
 ## Connecting the Expo app
 
 The app still uses on-device storage; nothing here changes it. To switch, replace the `src/storage/*` modules with API calls
 (`customerStore` → `/auth`, `/me`, `/customers`; `requestStore` → `/redemption-requests`; `fuelClaimStore` → `/fuel-claims`;
-`staffStore` → `/staff`, `/auth/staff/login`). Claim photos go up as `multipart/form-data` (field `photo`) instead of a base64 string.
+`staffStore` → `/staff`, `/auth/staff/login`). Fuel-entry photos go up as a base64 `data:` URI inside the JSON body.

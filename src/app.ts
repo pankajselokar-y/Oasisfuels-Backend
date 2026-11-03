@@ -18,8 +18,8 @@ export function createApp() {
   app.use(cors({ origin: origins.includes('*') ? true : origins }));
 
   app.use(requestLogger);
-  // Fuel proofs may carry the dashboard photo as a base64 data URI, so that route gets a larger body limit.
-  app.use('/api/v1/fuel-claims', express.json({ limit: '8mb' }));
+  // A fuel entry carries the dashboard photo as a base64 data URI, so that route gets a larger body limit.
+  app.use('/api/v1/fuel-entries', express.json({ limit: '8mb' }));
   app.use(express.json({ limit: '100kb' }));
 
   app.use('/api/v1', apiRouter);

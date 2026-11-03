@@ -1,22 +1,19 @@
 import { Router } from 'express';
 import * as claims from '../controllers/fuelClaim.controller.js';
 import { authenticate, customerOnly, staffOnly } from '../middlewares/auth.js';
-import { uploadPhoto } from '../middlewares/upload.js';
 import { validate } from '../middlewares/validate.js';
 import { idParam } from '../validators/common.js';
 import {
   approveClaimBody,
   rejectClaimBody,
   reviewListQuery,
-  submitClaimBody,
 } from '../validators/operations.validator.js';
 
 export const fuelClaimRoutes = Router();
 
 fuelClaimRoutes.use(authenticate);
 
-// Customers (multipart/form-data: vehicleId, amountRupees, latitude, longitude, accuracy?, photo)
-fuelClaimRoutes.post('/', customerOnly, uploadPhoto, validate({ body: submitClaimBody }), claims.submit);
+// Customers can look at their own proofs, but only staff create them (with a fuel entry).
 fuelClaimRoutes.get('/mine', customerOnly, claims.mine);
 
 // Staff review queue

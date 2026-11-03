@@ -6,7 +6,9 @@ export const name = z.string().trim().min(1, 'Name is required.').max(100);
 export const username = z
   .string()
   .trim()
-  .regex(/^[a-z0-9._]{3,20}$/i, 'Username must be 3-20 characters: letters, numbers, dot or underscore.');
+  .regex(/^[a-z0-9._]{3,20}$/i, 'Username must be 3-20 characters: letters, numbers, dot or underscore.')
+  // The app's single login treats a 10-digit number as a customer's phone, so a username must not be all digits.
+  .refine((value) => /\D/.test(value), 'Username cannot be only digits.');
 export const staffPassword = z.string().min(6, 'Password must be at least 6 characters.').max(100);
 
 export const idParam = z.object({ id: z.uuid('Invalid id.') });

@@ -1,6 +1,5 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import multer from 'multer';
 import { ZodError } from 'zod';
 import { isProduction } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -31,9 +30,6 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   } else if (err instanceof ZodError) {
     const details = err.issues.map((i) => ({ field: i.path.join('.'), message: i.message }));
     [status, body] = send(400, 'VALIDATION_ERROR', details[0]?.message ?? 'Invalid request.', details);
-  } else if (err instanceof multer.MulterError) {
-    const tooBig = err.code === 'LIMIT_FILE_SIZE';
-    [status, body] = send(tooBig ? 413 : 400, 'UPLOAD_ERROR', tooBig ? 'The photo is too large (max 5 MB).' : err.message);
   } else if (err instanceof jwt.JsonWebTokenError) {
     [status, body] = send(401, 'UNAUTHORIZED', 'Invalid or expired token.');
   } else if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

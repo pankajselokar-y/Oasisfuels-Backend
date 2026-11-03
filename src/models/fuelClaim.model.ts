@@ -6,10 +6,12 @@ const withPeople = {
   resolvedBy: { select: { id: true, name: true } },
 } as const;
 
-export interface NewFuelClaim {
+/** A proof the cashier captured while recording the fill-up, so it is stored already approved. */
+export interface NewVerifiedFuelClaim {
   id: string;
   customerId: string;
-  vehicleId: string;
+  /** Null when the cashier typed a plate that is not on the customer's profile. */
+  vehicleId: string | null;
   vehicleModel: string;
   vehicleNumber: string;
   claimedAmountRupees: number;
@@ -18,10 +20,16 @@ export interface NewFuelClaim {
   accuracy: number | null;
   photoPath: string;
   photoMime: string;
+  resolvedById: string;
+  pointsAwarded: number;
 }
 
 export const FuelClaimModel = {
-  create: (db: Db, data: NewFuelClaim) => db.fuelClaim.create({ data, include: withPeople }),
+  createVerified: (db: Db, data: NewVerifiedFuelClaim) =>
+    db.fuelClaim.create({
+      data: { ...data, status: 'APPROVED', resolvedAt: new Date(), approvedAmountRupees: data.claimedAmountRupees },
+      include: withPeople,
+    }),
 
   findById: (db: Db, id: string) => db.fuelClaim.findUnique({ where: { id }, include: withPeople }),
 
@@ -38,9 +46,6 @@ export const FuelClaimModel = {
     }),
 
   count: (db: Db, status?: ReviewStatus) => db.fuelClaim.count({ where: status ? { status } : {} }),
-
-  hasPending: async (db: Db, customerId: string) =>
-    (await db.fuelClaim.count({ where: { customerId, status: 'PENDING' } })) > 0,
 
   /** Moves a claim out of PENDING exactly once. Returns false if someone else resolved it first. */
   resolvePending: async (

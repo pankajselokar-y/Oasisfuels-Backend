@@ -1,32 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import type { RequestHandler } from 'express';
-import { MAX_PHOTO_BYTES } from '../config/constants.js';
-import { badRequest } from '../utils/AppError.js';
+import { notFound } from '../utils/AppError.js';
 import { FuelClaimService } from '../services/fuelClaim.service.js';
 import { authOf, created, ok, queryOf } from '../utils/http.js';
 import { pageMeta, type Pagination } from '../utils/pagination.js';
 import { fuelClaimDto } from '../utils/serializers.js';
 import type { ReviewStatus } from '../generated/prisma/client.js';
-
-/** The photo is either an uploaded file (multipart) or a base64 data URI in the JSON body. */
-function photoFrom(req: Parameters<RequestHandler>[0]): { buffer: Buffer } | undefined {
-  if (req.file) return { buffer: req.file.buffer };
-  const dataUri: string | undefined = req.body.photoDataUri;
-  if (!dataUri) return undefined;
-  const buffer = Buffer.from(dataUri.slice(dataUri.indexOf(',') + 1), 'base64');
-  if (buffer.length > MAX_PHOTO_BYTES) throw badRequest('The photo is too large (max 5 MB).');
-  return { buffer };
-}
-
-export const submit: RequestHandler = async (req, res) => {
-  const { photoDataUri: _ignored, ...fields } = req.body;
-  const claim = await FuelClaimService.submit({
-    ...fields,
-    customerId: authOf(req).sub,
-    photo: photoFrom(req),
-  });
-  created(res, fuelClaimDto(claim));
-};
 
 export const mine: RequestHandler = async (req, res) => {
   ok(res, (await FuelClaimService.listForCustomer(authOf(req).sub)).map(fuelClaimDto));
@@ -49,12 +28,17 @@ export const photo: RequestHandler = async (req, res) => {
     id: auth.sub,
     role: auth.role,
   });
+  // A proof whose file has gone missing (e.g. uploads were not on a persistent disk) is a clean 404, not a server error.
+  let image: Buffer;
+  try {
+    image = await readFile(absolutePath);
+  } catch {
+    throw notFound('This photo is no longer available.');
+  }
   res.setHeader('Cache-Control', 'private, max-age=3600');
   // ?as=dataUri lets the mobile app show the photo without handling binary responses.
-  if (req.query['as'] === 'dataUri') {
-    return ok(res, { dataUri: `data:${mime};base64,${(await readFile(absolutePath)).toString('base64')}` });
-  }
-  res.type(mime).sendFile(absolutePath);
+  if (req.query['as'] === 'dataUri') return ok(res, { dataUri: `data:${mime};base64,${image.toString('base64')}` });
+  res.type(mime).send(image);
 };
 
 export const approve: RequestHandler = async (req, res) => {
