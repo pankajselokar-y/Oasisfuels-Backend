@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
+/** Looks an existing account up (log in, referral): any 10 digits, so older accounts can always sign in. */
 export const phone = z.string().trim().regex(/^\d{10}$/, 'Enter a valid 10-digit mobile number.');
+/** Creates an account: a real Indian mobile number, 10 digits starting with 6, 7, 8 or 9. */
+export const mobile = z
+  .string()
+  .trim()
+  .regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number (it must start with 6, 7, 8 or 9).');
 export const pin = z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits.');
 export const name = z.string().trim().min(1, 'Name is required.').max(100);
 export const username = z

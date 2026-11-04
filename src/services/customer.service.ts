@@ -157,6 +157,16 @@ export const CustomerService = {
     });
   },
 
+  /** A cashier/admin sets a new PIN for a customer who forgot theirs, and signs the customer out everywhere. */
+  async resetPinByStaff(customerId: string, newPin: string) {
+    const pinHash = await hashSecret(newPin);
+    await prisma.$transaction(async (tx) => {
+      if (!(await CustomerModel.findById(tx, customerId))) throw notFound('Customer not found.');
+      await CustomerModel.update(tx, customerId, { pinHash });
+      await tx.refreshToken.updateMany({ where: { subjectId: customerId, revokedAt: null }, data: { revokedAt: new Date() } });
+    });
+  },
+
   async history(customerId: string, pagination: Pagination) {
     const { skip, take } = toSkipTake(pagination);
     const [transactions, total] = await Promise.all([

@@ -18,6 +18,11 @@ export const create: RequestHandler = async (req, res) => {
   created(res, customerDto(customer));
 };
 
+export const resetPin: RequestHandler = async (req, res) => {
+  await CustomerService.resetPinByStaff(req.params['id'] as string, req.body.newPin);
+  ok(res, { reset: true });
+};
+
 export const get: RequestHandler = async (req, res) => {
   const { customer, stats } = await CustomerService.profile(req.params['id'] as string);
   ok(res, { ...customerDto(customer), stats });

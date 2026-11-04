@@ -1,8 +1,9 @@
+import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { hashSecret, verifySecret } from '../lib/password.js';
 import { CustomerModel } from '../models/customer.model.js';
 import { StaffModel } from '../models/staff.model.js';
-import { forbidden, unauthorized } from '../utils/AppError.js';
+import { badRequest, forbidden, unauthorized } from '../utils/AppError.js';
 import { CustomerService, type NewAccount } from './customer.service.js';
 import { OtpService } from './otp.service.js';
 import { SessionService } from './session.service.js';
@@ -19,10 +20,14 @@ export const AuthService = {
     return { customer, ...(await SessionService.start({ id: customer.id, role: 'CUSTOMER' })) };
   },
 
-  /** Self sign-up: the phone number must first be proven with an SMS code. */
-  async registerCustomer(input: Omit<NewAccount, 'consumeOtpId'> & { otp: string }) {
+  /** Self sign-up. With OTP_ENABLED the phone number must first be proven with an SMS code; otherwise no code is involved. */
+  async registerCustomer(input: Omit<NewAccount, 'consumeOtpId'> & { otp?: string }) {
     const { otp, ...account } = input;
-    const consumeOtpId = await OtpService.verify(account.phone, 'REGISTER', otp);
+    let consumeOtpId: string | undefined;
+    if (env.OTP_ENABLED) {
+      if (!otp) throw badRequest('Enter the 6-digit code from the SMS.');
+      consumeOtpId = await OtpService.verify(account.phone, 'REGISTER', otp);
+    }
     const customer = await CustomerService.createAccount({ ...account, consumeOtpId });
     return { customer, ...(await SessionService.start({ id: customer.id, role: 'CUSTOMER' })) };
   },

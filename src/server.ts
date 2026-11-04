@@ -9,11 +9,14 @@ const app = createApp();
 
 const server = app.listen(env.PORT, () => {
   log.info(`Oasis Fuel Rewards API listening on http://localhost:${env.PORT}/api/v1 (${env.NODE_ENV})`);
-  log.info(
-    sms.name === 'fast2sms'
-      ? 'SMS provider: Fast2SMS (real SMS will be sent and charged)'
-      : 'SMS provider: console (no FAST2SMS_API_KEY set; OTP codes are printed here, nothing is sent)',
-  );
+  if (!env.OTP_ENABLED) log.info('SMS verification is OFF (OTP_ENABLED is not true): sign-up needs no code and no SMS is sent');
+  else {
+    log.info(
+      sms.name === 'fast2sms'
+        ? 'SMS provider: Fast2SMS (real SMS will be sent and charged)'
+        : 'SMS provider: console (no FAST2SMS_API_KEY set; OTP codes are printed here, nothing is sent)',
+    );
+  }
 });
 
 async function shutdown(signal: string) {

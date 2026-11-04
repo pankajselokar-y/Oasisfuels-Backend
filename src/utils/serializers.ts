@@ -8,6 +8,7 @@ import type {
   Staff,
   Vehicle,
 } from '../generated/prisma/client.js';
+import { env } from '../config/env.js';
 import { getTierInfo } from './tiers.js';
 
 type Person = { id: string; name: string; phone?: string } | null;
@@ -80,5 +81,7 @@ export const settingsDto = (s: Setting) => ({
   fuelRatePerLitre: s.fuelRatePerLitre,
   minFuelAmountRupees: s.minFuelAmountRupees,
   referralBonusPoints: s.referralBonusPoints,
+  /** Whether sign-up / forgot-PIN use an SMS code; the app hides those steps when false. */
+  otpEnabled: env.OTP_ENABLED,
   updatedAt: s.updatedAt,
 });

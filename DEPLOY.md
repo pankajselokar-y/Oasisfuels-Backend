@@ -7,10 +7,10 @@ Express + Prisma + PostgreSQL on **Render**.
 You already have a Render PostgreSQL database. This repository has a Blueprint (`render.yaml`) that creates the web service.
 
 1. Render dashboard → **New → Blueprint** → connect this GitHub repository → pick the `main` branch.
-2. Render reads `render.yaml` and asks for two secrets:
+2. Render reads `render.yaml` and asks for its secrets:
    - `DATABASE_URL` → your database's **Internal** URL (dashboard → your PostgreSQL → *Connections* → *Internal Database URL*).
      Use the Internal URL here (same region as the service); the External URL is only for your own PC and needs `?sslmode=require`.
-   - `FAST2SMS_API_KEY` → your Fast2SMS key. (Use a *new* key — the old one was pasted in chat.)
+   - `FAST2SMS_API_KEY` → leave blank. It is only used if you later set `OTP_ENABLED=true` to turn SMS verification on (use a *new* key then).
 3. Click **Apply**. Render builds, runs `prisma migrate deploy` (creates/updates tables), then starts the server.
    `JWT_SECRET` is generated automatically.
 4. When it shows **Live**, open `https://<your-service>.onrender.com/api/v1/health` — you should see `{"data":{"status":"ok","database":"up"}}`.
@@ -48,7 +48,7 @@ Environment variables (Project → Settings → Environment Variables, enable fo
 | --- | --- |
 | `DATABASE_URL` | Render's **External** URL with `?sslmode=require` (Vercel cannot use the internal one) |
 | `JWT_SECRET` | a random string of at least 32 characters |
-| `FAST2SMS_API_KEY` | your Fast2SMS key (production refuses to start without it) |
+| `OTP_ENABLED` | leave unset (SMS verification is off). `true` also needs `FAST2SMS_API_KEY` |
 | `CORS_ORIGINS` | `*`, or your app's origins separated by commas |
 
 Database migrations are **not** run by Vercel. Run them from your machine whenever the schema changes:

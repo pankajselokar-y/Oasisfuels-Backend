@@ -74,7 +74,7 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `POST /auth/register/check` | `{ phone, vehicle?, referralCode? }` — runs the sign-up rules that don't need the code (number free, vehicle format, referral valid), so the app can reject bad details *before* a paid SMS is sent |
 | `POST /auth/otp/send` | `{ phone, purpose: "REGISTER" \| "RESET_PIN" }` — texts a 6-digit code (see *SMS & OTP*) |
 | `POST /auth/otp/verify` | `{ phone, purpose, otp }` — checks a code **without using it up** (200 `{ verified: true }`, or 400 `Incorrect code.`); optional pre-check; `register` verifies the code itself |
-| `POST /auth/customer/register` | `{ name, phone, pin, otp, vehicle?: { number, model? }, referralCode? }` — `otp` is the code sent to `phone`; referrer earns the bonus |
+| `POST /auth/customer/register` | `{ name, phone, pin, otp?, vehicle?: { number, model? }, referralCode? }` — `otp` (the code sent to `phone`) is only required when `OTP_ENABLED=true`; referrer earns the bonus |
 | `POST /auth/customer/reset-pin` | `{ phone, otp, newPin }` — forgot-PIN, after `otp/send` with `RESET_PIN` |
 | `POST /auth/customer/login` | `{ phone, pin }` → `{ token, refreshToken, customer }` |
 | `POST /auth/staff/login` | `{ username, password }` → `{ token, refreshToken, staff }` |
@@ -141,6 +141,15 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 - **Audit trail:** ledger rows, approvals and rejections record which staff member did them.
 
 ## SMS & OTP (Fast2SMS)
+
+> **SMS is switched OFF by default** (`OTP_ENABLED=false`). The app then works without sending any SMS: sign-up needs no code
+> (`otp` is optional and ignored), `POST /auth/otp/send`, `/auth/otp/verify` and `/auth/customer/reset-pin` answer **503 `OTP_DISABLED`**,
+> and a customer who forgot their PIN asks a cashier/admin, who sets a new one with `POST /customers/:id/reset-pin { newPin }`
+> (this also signs the customer out on every device). `GET /settings` returns `otpEnabled` so the app can hide the SMS steps.
+> Set `OTP_ENABLED=true` (plus `FAST2SMS_API_KEY`) to bring the flows below back; no code changes are needed.
+>
+> **Mobile numbers:** anything that creates an account (sign-up, `register/check`, `otp/send`, staff-created customers) requires a
+> 10-digit Indian mobile number starting with 6, 7, 8 or 9. Logging in accepts any 10 digits so older accounts keep working.
 
 Customers prove they own a phone number with a one-time code, both to **register** and to **reset a forgotten PIN**.
 Staff-registered walk-in customers (`POST /customers`) skip this — the cashier vouches for them.

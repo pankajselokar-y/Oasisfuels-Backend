@@ -54,4 +54,6 @@ class ConsoleProvider implements SmsProvider {
   }
 }
 
-export const sms: SmsProvider = env.FAST2SMS_API_KEY ? new Fast2SmsProvider(env.FAST2SMS_API_KEY) : new ConsoleProvider();
+// A real SMS is only ever sent when OTP is switched on AND a key is configured.
+export const sms: SmsProvider =
+  env.OTP_ENABLED && env.FAST2SMS_API_KEY ? new Fast2SmsProvider(env.FAST2SMS_API_KEY) : new ConsoleProvider();

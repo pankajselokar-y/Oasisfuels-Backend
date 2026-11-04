@@ -28,5 +28,7 @@ services:
         generateValue: true
       - key: DATABASE_URL # the database's *Internal* URL (Render dashboard → your PostgreSQL → Connections)
         sync: false
-      - key: FAST2SMS_API_KEY
+      - key: OTP_ENABLED # SMS verification is off; set to "true" (and add FAST2SMS_API_KEY) to turn it on
+        value: "false"
+      - key: FAST2SMS_API_KEY # only used when OTP_ENABLED is true
         sync: false

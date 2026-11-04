@@ -13,6 +13,14 @@ const schema = z
     /** On Vercel only /tmp is writable (and it is wiped between invocations), so photos do not persist there. */
     UPLOAD_DIR: z.string().default(process.env['VERCEL'] ? '/tmp/uploads' : 'uploads'),
     DEFAULT_CUSTOMER_PIN: z.string().regex(/^\d{4}$/, 'DEFAULT_CUSTOMER_PIN must be 4 digits').default('1234'),
+    /**
+     * SMS verification (a code texted at sign-up and on "forgot PIN"). OFF by default: the app works without sending any SMS.
+     * Set OTP_ENABLED=true (and FAST2SMS_API_KEY) to turn it back on; no code needs to change.
+     */
+    OTP_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     /** Without a key, OTP codes are printed to the server console instead of sent (development only). */
     FAST2SMS_API_KEY: z
       .string()
@@ -24,9 +32,9 @@ const schema = z
     path: ['JWT_SECRET'],
     message: 'JWT_SECRET must be at least 32 characters in production',
   })
-  .refine((env) => env.NODE_ENV !== 'production' || Boolean(env.FAST2SMS_API_KEY), {
+  .refine((env) => env.NODE_ENV !== 'production' || !env.OTP_ENABLED || Boolean(env.FAST2SMS_API_KEY), {
     path: ['FAST2SMS_API_KEY'],
-    message: 'FAST2SMS_API_KEY is required in production so OTP codes can be sent',
+    message: 'FAST2SMS_API_KEY is required in production when OTP_ENABLED=true so OTP codes can be sent',
   });
 
 const parsed = schema.safeParse(process.env);

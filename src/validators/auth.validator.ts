@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { name, phone, pin, vehicleInput } from './common.js';
+import { mobile, name, phone, pin, vehicleInput } from './common.js';
 
 const otp = z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code from the SMS.');
 
@@ -12,7 +12,7 @@ export const staffLoginBody = z.object({
 
 /** Ask for a code by SMS. Registration and PIN reset are the two things a code unlocks. */
 export const sendOtpBody = z.object({
-  phone,
+  phone: mobile,
   purpose: z.enum(['REGISTER', 'RESET_PIN']),
 });
 
@@ -21,10 +21,10 @@ export const verifyOtpBody = sendOtpBody.extend({ otp });
 
 export const registerBody = z.object({
   name,
-  phone,
+  phone: mobile,
   pin,
-  /** The code sent to `phone` by POST /auth/otp/send (purpose REGISTER). */
-  otp,
+  /** The code sent to `phone` by POST /auth/otp/send (purpose REGISTER). Only needed (and checked) when OTP_ENABLED=true. */
+  otp: otp.optional(),
   vehicle: vehicleInput.optional(),
   /** A friend's mobile number. */
   referralCode: z.string().trim().optional(),
@@ -32,7 +32,7 @@ export const registerBody = z.object({
 
 /** Everything about a sign-up that can be checked before a paid SMS code is sent. */
 export const checkRegistrationBody = z.object({
-  phone,
+  phone: mobile,
   vehicle: vehicleInput.optional(),
   referralCode: z.string().trim().optional(),
 });
