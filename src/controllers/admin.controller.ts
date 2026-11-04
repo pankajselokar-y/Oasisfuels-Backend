@@ -4,7 +4,8 @@ import { RewardService } from '../services/reward.service.js';
 import { SettingService } from '../services/setting.service.js';
 import { StaffService } from '../services/staff.service.js';
 import { authOf, created, ok, queryOf } from '../utils/http.js';
-import { redemptionDto, rewardDto, settingsDto, staffDto } from '../utils/serializers.js';
+import { pageMeta, toSkipTake, type Pagination } from '../utils/pagination.js';
+import { inactiveVehicleDto, redemptionDto, rewardDto, settingsDto, staffDto } from '../utils/serializers.js';
 
 // --- Staff accounts (admin) -------------------------------------------------------------
 
@@ -36,6 +37,13 @@ export const issuedItems: RequestHandler = async (req, res) => {
   const { days, from, to } = queryOf<{ days: number | 'all'; from?: Date; to?: Date }>(req);
   const report = await ReportService.issuedItems({ days: days === 'all' ? null : days, from, to });
   ok(res, { ...report, items: report.items.map(redemptionDto) });
+};
+
+export const inactiveVehicles: RequestHandler = async (req, res) => {
+  const query = queryOf<Pagination & { days: number }>(req);
+  const { skip, take } = toSkipTake(query);
+  const report = await ReportService.inactiveVehicles(query.days, skip, take);
+  ok(res, report.items.map(inactiveVehicleDto), { ...pageMeta(query, report.total), days: report.days });
 };
 
 export const dashboard: RequestHandler = async (_req, res) => {

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { INACTIVE_VEHICLE_DAYS } from '../config/constants.js';
+import { paginationQuery } from '../utils/pagination.js';
 import { name, staffPassword, username } from './common.js';
 
 export const createStaffBody = z.object({
@@ -46,3 +48,8 @@ export const issuedItemsQuery = z
     to: q.to ? new Date(`${q.to}T23:59:59.999Z`) : undefined,
   }))
   .refine((q) => !q.from || !q.to || q.from <= q.to, { message: 'The start date must be on or before the end date.' });
+
+/** How long without a fuel fill makes a vehicle "inactive" (default 30 days), paged. */
+export const inactiveVehiclesQuery = paginationQuery.extend({
+  days: z.coerce.number().int().min(1).max(3650).default(INACTIVE_VEHICLE_DAYS),
+});

@@ -5,6 +5,7 @@ import { validate } from '../middlewares/validate.js';
 import {
   changeOwnPasswordBody,
   createStaffBody,
+  inactiveVehiclesQuery,
   issuedItemsQuery,
   setActiveBody,
   updateSettingsBody,
@@ -24,6 +25,7 @@ staffRoutes.patch('/:id/active', adminOnly, validate({ params: idParam, body: se
 export const reportRoutes = Router();
 reportRoutes.use(authenticate, adminOnly);
 reportRoutes.get('/dashboard', admin.dashboard);
+reportRoutes.get('/inactive-vehicles', validate({ query: inactiveVehiclesQuery }), admin.inactiveVehicles);
 reportRoutes.get('/issued-items', validate({ query: issuedItemsQuery }), admin.issuedItems);
 
 export const settingRoutes = Router();

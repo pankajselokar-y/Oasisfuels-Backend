@@ -115,8 +115,9 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 **Admin only**
 | | |
 |---|---|
-| `GET /reports/dashboard` | totals, pending counts, items issued in the last 45 days |
+| `GET /reports/dashboard` | totals, pending counts, items issued in the last 45 days, and `inactiveVehicles` (the alert count below) |
 | `GET /reports/issued-items?days=45` (or `?from=YYYY-MM-DD&to=YYYY-MM-DD` for a custom range) | items handed over; `days` = a number or `all`; includes summary and per-item counts |
+| `GET /reports/inactive-vehicles?days=30&page=1&pageSize=20` | **Inactive-vehicle alert**: vehicles with no *approved* fuel fill for more than `days` days (default 30), longest quiet first, each with its customer's name and phone. A vehicle that never filled counts from the day it was added. Fills match a vehicle by id or by plate number |
 | `GET/POST /staff`, `PATCH /staff/:id`, `PATCH /staff/:id/active` | manage staff (edit name/username/password; enable/disable) |
 | `PATCH /settings` | `fuelRatePerLitre`, `minFuelAmountRupees`, `referralBonusPoints` (`GET /settings` is public, so the sign-up screen can show the real bonus) |
 

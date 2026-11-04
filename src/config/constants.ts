@@ -33,3 +33,6 @@ export const OTP = {
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 export const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
+/** A vehicle that has not filled fuel for this many days raises an "inactive vehicle" alert for the admin. */
+export const INACTIVE_VEHICLE_DAYS = 30;

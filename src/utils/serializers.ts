@@ -9,6 +9,7 @@ import type {
   Vehicle,
 } from '../generated/prisma/client.js';
 import { env } from '../config/env.js';
+import type { InactiveVehicleRow } from '../services/report.service.js';
 import { getTierInfo } from './tiers.js';
 
 type Person = { id: string; name: string; phone?: string } | null;
@@ -84,4 +85,13 @@ export const settingsDto = (s: Setting) => ({
   /** Whether sign-up / forgot-PIN use an SMS code; the app hides those steps when false. */
   otpEnabled: env.OTP_ENABLED,
   updatedAt: s.updatedAt,
+});
+
+/** One row of the inactive-vehicles alert: a vehicle that has not filled fuel for a while, and whose customer to contact. */
+export const inactiveVehicleDto = (r: InactiveVehicleRow & { daysInactive: number }) => ({
+  vehicle: { id: r.vehicleId, number: r.number, model: r.model, addedAt: r.addedAt },
+  customer: { id: r.customerId, name: r.customerName, phone: r.customerPhone },
+  lastFillAt: r.lastFillAt,
+  inactiveSince: r.since,
+  daysInactive: r.daysInactive,
 });
