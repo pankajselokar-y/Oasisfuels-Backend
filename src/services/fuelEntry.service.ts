@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ALLOWED_PHOTO_TYPES } from '../config/constants.js';
+import { logger } from '../lib/logger.js';
+import { stampJpeg } from '../lib/photoStamp.js';
 import { prisma } from '../lib/prisma.js';
 import { detectImageType, removeUpload, saveFuelPhoto } from '../lib/storage.js';
 import { CustomerModel } from '../models/customer.model.js';
@@ -10,6 +12,8 @@ import { badRequest, notFound } from '../utils/AppError.js';
 import { pointsForAmount } from '../utils/fuel.js';
 import { creditPoints } from './points.service.js';
 import { prepareVehicle } from './vehicle.service.js';
+
+const log = logger('fuel-entry');
 
 export interface FuelProof {
   vehicleId?: string;
@@ -36,7 +40,22 @@ export const FuelEntryService = {
         throw badRequest('The photo must be a JPEG, PNG or WebP image.');
       }
       const id = randomUUID();
-      saved = { id, path: await saveFuelPhoto(id, input.proof.photo, mime), mime };
+      // The proof photo carries its own geo-tag: date and time (server clock, India time), GPS position and accuracy.
+      // If a photo cannot be stamped (not a JPEG, or unreadable) it is kept as it was, so that never blocks a fuel entry.
+      let photo = input.proof.photo;
+      if (mime === 'image/jpeg') {
+        try {
+          photo = stampJpeg(photo, {
+            latitude: input.proof.latitude,
+            longitude: input.proof.longitude,
+            accuracy: input.proof.accuracy,
+            at: new Date(),
+          });
+        } catch (error) {
+          log.warn(`could not stamp the proof photo, keeping the original: ${error instanceof Error ? error.message : error}`);
+        }
+      }
+      saved = { id, path: await saveFuelPhoto(id, photo, mime), mime };
     }
 
     try {

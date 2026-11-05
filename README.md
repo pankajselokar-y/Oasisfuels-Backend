@@ -110,7 +110,7 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 **Cashier only**
 | | |
 |---|---|
-| `POST /fuel-entries` | `{ customerId, amountRupees }` **or** `{ customerId, litres }`, plus `proof: { vehicleId \| vehicleNumber, latitude, longitude, accuracy?, photoDataUri }` (the dashboard photo as a base64 data URI). → points + `unlockedRewards`. The proof is stored as an already-approved fuel proof; the app always sends it |
+| `POST /fuel-entries` | `{ customerId, amountRupees }` **or** `{ customerId, litres }`, plus `proof: { vehicleId \| vehicleNumber, latitude, longitude, accuracy?, photoDataUri }` (the dashboard photo as a base64 data URI). → points + `unlockedRewards`. The proof is stored as an already-approved fuel proof; the app always sends it. **Staff only** (cashiers; admins and customers get 403). A JPEG proof is **geo-tagged on the server**: a band along the bottom prints the date and time (server clock, India time), the GPS position and accuracy, so the time cannot be changed from the phone. A photo that cannot be stamped (PNG/WebP, or unreadable) is kept as sent, so stamping never blocks an entry |
 
 **Admin only**
 | | |
