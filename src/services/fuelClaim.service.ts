@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { prisma } from '../lib/prisma.js';
 import { uploadPath } from '../lib/storage.js';
 import type { ReviewStatus } from '../generated/prisma/client.js';
@@ -28,9 +29,23 @@ export const FuelClaimService = {
     return claim;
   },
 
+  /**
+   * The proof photo for a claim the viewer may see, or null when it no longer exists. New photos are in the database;
+   * older ones are files under UPLOAD_DIR, which may be gone (e.g. a host without a persistent disk).
+   */
   async photoFor(id: string, viewer: { id: string; role: Role }) {
-    const claim = await this.getForViewer(id, viewer);
-    return { absolutePath: uploadPath(claim.photoPath), mime: claim.photoMime };
+    await this.getForViewer(id, viewer); // not found / not yours
+    const stored = await FuelClaimModel.findPhoto(prisma, id);
+    if (!stored) return null;
+    if (stored.photoData) return { image: Buffer.from(stored.photoData), mime: stored.photoMime };
+    if (stored.photoPath) {
+      try {
+        return { image: await readFile(uploadPath(stored.photoPath)), mime: stored.photoMime };
+      } catch {
+        return null;
+      }
+    }
+    return null;
   },
 
   /** Staff approve with the amount they verified (defaults to what the customer claimed). */

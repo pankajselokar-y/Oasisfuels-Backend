@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import type { RequestHandler } from 'express';
 import { notFound } from '../utils/AppError.js';
 import { FuelClaimService } from '../services/fuelClaim.service.js';
@@ -24,17 +23,10 @@ export const get: RequestHandler = async (req, res) => {
 
 export const photo: RequestHandler = async (req, res) => {
   const auth = authOf(req);
-  const { absolutePath, mime } = await FuelClaimService.photoFor(req.params['id'] as string, {
-    id: auth.sub,
-    role: auth.role,
-  });
-  // A proof whose file has gone missing (e.g. uploads were not on a persistent disk) is a clean 404, not a server error.
-  let image: Buffer;
-  try {
-    image = await readFile(absolutePath);
-  } catch {
-    throw notFound('This photo is no longer available.');
-  }
+  const found = await FuelClaimService.photoFor(req.params['id'] as string, { id: auth.sub, role: auth.role });
+  // A proof whose photo is gone (an old file that was not on a persistent disk) is a clean 404, not a server error.
+  if (!found) throw notFound('This photo is no longer available.');
+  const { image, mime } = found;
   res.setHeader('Cache-Control', 'private, max-age=3600');
   // ?as=dataUri lets the mobile app show the photo without handling binary responses.
   if (req.query['as'] === 'dataUri') return ok(res, { dataUri: `data:${mime};base64,${image.toString('base64')}` });

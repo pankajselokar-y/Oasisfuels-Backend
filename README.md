@@ -136,7 +136,9 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
   stored already approved (the cashier vouches for it) and shows in the customer's history. A fill-up that fails (bad plate,
   amount below the minimum, not an image...) records nothing and leaves no photo behind. Proofs submitted by customers before
   this change can still be approved or rejected by staff. Photos are checked by file signature (JPEG/PNG/WebP, ≤ 5 MB) and
-  stored under `UPLOAD_DIR`.
+  stored **in the database** (`FuelClaim.photoData`, about 70 KB each), so they survive on hosts without a persistent disk
+  such as Vercel. Normal queries leave the bytes out; only `GET /fuel-claims/:id/photo` loads them. Photos saved before this
+  change are files under `UPLOAD_DIR` and are still served from there when the file exists.
 - **Issue log:** nothing is ever deleted — the points ledger and redemption rows are append-only/retained — so the 45-day window
   (or any other) can always be answered.
 - **Audit trail:** ledger rows, approvals and rejections record which staff member did them.

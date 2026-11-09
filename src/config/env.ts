@@ -10,8 +10,8 @@ const schema = z
     /** Lifetime of the access token. Short, because the app silently renews it with its refresh token. */
     JWT_EXPIRES_IN: z.string().default('1h'),
     CORS_ORIGINS: z.string().default('*'),
-    /** On Vercel only /tmp is writable (and it is wiped between invocations), so photos do not persist there. */
-    UPLOAD_DIR: z.string().default(process.env['VERCEL'] ? '/tmp/uploads' : 'uploads'),
+    /** Only used to read older proof photos that were saved as files; new photos are stored in the database. */
+    UPLOAD_DIR: z.string().default('uploads'),
     DEFAULT_CUSTOMER_PIN: z.string().regex(/^\d{4}$/, 'DEFAULT_CUSTOMER_PIN must be 4 digits').default('1234'),
     /**
      * SMS verification (a code texted at sign-up and on "forgot PIN"). OFF by default: the app works without sending any SMS.

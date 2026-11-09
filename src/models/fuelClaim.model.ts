@@ -18,18 +18,29 @@ export interface NewVerifiedFuelClaim {
   latitude: number;
   longitude: number;
   accuracy: number | null;
-  photoPath: string;
+  /** The photo bytes; they are stored in the database. */
+  photo: Buffer;
   photoMime: string;
   resolvedById: string;
   pointsAwarded: number;
 }
 
 export const FuelClaimModel = {
-  createVerified: (db: Db, data: NewVerifiedFuelClaim) =>
+  createVerified: (db: Db, { photo, ...data }: NewVerifiedFuelClaim) =>
     db.fuelClaim.create({
-      data: { ...data, status: 'APPROVED', resolvedAt: new Date(), approvedAmountRupees: data.claimedAmountRupees },
+      data: {
+        ...data,
+        photoData: new Uint8Array(photo),
+        status: 'APPROVED',
+        resolvedAt: new Date(),
+        approvedAmountRupees: data.claimedAmountRupees,
+      },
       include: withPeople,
     }),
+
+  /** The stored photo and where it lives. This is the one query that asks for the image bytes. */
+  findPhoto: (db: Db, id: string) =>
+    db.fuelClaim.findUnique({ where: { id }, select: { photoData: true, photoPath: true, photoMime: true } }),
 
   findById: (db: Db, id: string) => db.fuelClaim.findUnique({ where: { id }, include: withPeople }),
 

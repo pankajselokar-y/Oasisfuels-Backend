@@ -166,8 +166,11 @@ model FuelClaim {
   latitude            Float
   longitude           Float
   accuracy            Float?
-  /// Path of the stored photo, relative to UPLOAD_DIR.
-  photoPath           String
+  /// The photo itself, kept in the database so it survives on hosts with no persistent disk (Vercel). Left out of normal
+  /// queries (see lib/prisma.ts) so listing claims never loads image bytes.
+  photoData           Bytes?
+  /// Legacy: photos saved before they moved into the database are files under UPLOAD_DIR; this is their relative path.
+  photoPath           String?
   photoMime           String
   status              ReviewStatus @default(PENDING)
   rejectionReason     String?

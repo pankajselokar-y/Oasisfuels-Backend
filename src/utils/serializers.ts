@@ -53,7 +53,8 @@ export const redemptionDto = (r: RedemptionRequest & { customer?: Person; resolv
   resolvedBy: r.resolvedBy?.name ?? null,
 });
 
-export const fuelClaimDto = (c: FuelClaim & { customer?: Person; resolvedBy?: Person }) => ({
+// The photo bytes are never loaded with a claim (lib/prisma.ts omits them), so they are not part of this type either.
+export const fuelClaimDto = (c: Omit<FuelClaim, 'photoData'> & { customer?: Person; resolvedBy?: Person }) => ({
   id: c.id,
   status: c.status,
   ...(c.customer ? { customer: c.customer } : {}),

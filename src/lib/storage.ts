@@ -1,10 +1,8 @@
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../config/env.js';
 
+// Proof photos live in the database now. UPLOAD_DIR only matters for older photos that were saved as files.
 const root = path.resolve(env.UPLOAD_DIR);
-
-const EXTENSIONS: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 /** Identifies an image from its first bytes, so a file cannot lie about its declared type. */
 export function detectImageType(buf: Buffer): string | null {
@@ -18,25 +16,9 @@ export function detectImageType(buf: Buffer): string | null {
   return null;
 }
 
-/** Stores a fuel-proof photo and returns its path relative to UPLOAD_DIR. */
-export async function saveFuelPhoto(claimId: string, buffer: Buffer, mime: string): Promise<string> {
-  const relative = path.join('fuel-claims', `${claimId}.${EXTENSIONS[mime] ?? 'bin'}`);
-  const absolute = path.join(root, relative);
-  await mkdir(path.dirname(absolute), { recursive: true });
-  await writeFile(absolute, buffer);
-  return relative;
-}
-
+/** Absolute path of a legacy photo file, refusing anything that would escape UPLOAD_DIR. */
 export function uploadPath(relative: string): string {
   const absolute = path.resolve(root, relative);
   if (!absolute.startsWith(root + path.sep)) throw new Error('Invalid upload path');
   return absolute;
-}
-
-export async function removeUpload(relative: string): Promise<void> {
-  try {
-    await unlink(uploadPath(relative));
-  } catch {
-    // already gone; nothing to clean up
-  }
 }

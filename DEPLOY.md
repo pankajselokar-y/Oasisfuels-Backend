@@ -23,8 +23,8 @@ You already have a Render PostgreSQL database. This repository has a Blueprint (
 Your API base URL is `https://<your-service>.onrender.com/api/v1`.
 
 **Costs and limits to know**
-- `render.yaml` uses the **Starter** plan because fuel-proof photos need a persistent disk (`/var/data`) — Render's disk is wiped on every deploy otherwise — and pre-deploy migrations need a paid plan.
-- On the **Free** plan the service sleeps after 15 minutes idle (the first request then takes ~30–60 s, longer than the app waits) and uploaded photos are lost on each deploy. Fine for a quick demo only: delete the `disk:` block and `preDeployCommand`, and put `npm run db:deploy` at the end of `buildCommand`.
+- `render.yaml` uses the **Starter** plan because pre-deploy migrations need a paid plan. Its persistent disk (`/var/data`) now only holds fuel-proof photos saved before they moved into the database; new photos are stored in PostgreSQL.
+- On the **Free** plan the service sleeps after 15 minutes idle (the first request then takes ~30–60 s, longer than the app waits). Fine for a quick demo only: delete the `disk:` block and `preDeployCommand`, and put `npm run db:deploy` at the end of `buildCommand`.
 - Render's free PostgreSQL expires after 30 days. Upgrade it before then or you lose the data.
 
 ## Check it
@@ -55,7 +55,8 @@ Database migrations are **not** run by Vercel. Run them from your machine whenev
 `npm run db:deploy` (with `DATABASE_URL` pointing at the database).
 
 Limits compared with Render:
-- Fuel-proof photos are written to `/tmp`, which Vercel wipes between invocations, so they do **not** persist. Use Render (persistent
-  disk) or move photo storage into the database / Vercel Blob before relying on photos on Vercel.
+- Fuel-proof photos are stored in the database (about 70 KB each), so they persist on Vercel. Run `npm run db:deploy` **before**
+  deploying a version that adds the photo column (migration `store_photos_in_database`). Photos from before that migration were files
+  and are gone unless they were on Render's disk.
 - Rate limits are counted per serverless instance, so they are weaker than on a single server.
 - Each instance keeps at most 3 database connections.
