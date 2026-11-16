@@ -34,6 +34,8 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     [status, body] = send(401, 'UNAUTHORIZED', 'Invalid or expired token.');
   } else if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
     [status, body] = send(409, 'CONFLICT', 'That record already exists.');
+  } else if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+    [status, body] = send(404, 'NOT_FOUND', 'That record no longer exists.');
   } else if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
     [status, body] = send(404, 'NOT_FOUND', 'Record not found.');
   } else if (typeof err?.status === 'number' && err.status >= 400 && err.status < 500) {

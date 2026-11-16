@@ -36,3 +36,8 @@ export const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as 
 
 /** A vehicle that has not filled fuel for this many days raises an "inactive vehicle" alert for the admin. */
 export const INACTIVE_VEHICLE_DAYS = 30;
+
+// Upper bounds for what one fuel entry may claim. They stop typos (an extra zero) and keep every value inside the database's
+// 32-bit integer columns, so no input can overflow into a server error.
+export const MAX_FUEL_RUPEES = 200_000;
+export const MAX_FUEL_LITRES = 2_000;

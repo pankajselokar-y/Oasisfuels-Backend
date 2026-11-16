@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import * as me from '../controllers/me.controller.js';
 import { authenticate, customerOnly } from '../middlewares/auth.js';
+import { pinConfirmLimiter } from '../middlewares/rateLimit.js';
 import { validate } from '../middlewares/validate.js';
 import {
   changePinBody,
+  deleteAccountBody,
   historyQuery,
   updateProfileBody,
   vehicleBody,
@@ -17,7 +19,8 @@ meRoutes.use(authenticate, customerOnly);
 
 meRoutes.get('/', me.getProfile);
 meRoutes.patch('/', validate({ body: updateProfileBody }), me.updateProfile);
-meRoutes.patch('/pin', validate({ body: changePinBody }), me.changePin);
+meRoutes.patch('/pin', pinConfirmLimiter, validate({ body: changePinBody }), me.changePin);
+meRoutes.delete('/', pinConfirmLimiter, validate({ body: deleteAccountBody }), me.deleteAccount);
 meRoutes.get('/history', validate({ query: historyQuery }), me.history);
 
 meRoutes.get('/vehicles', me.listVehicles);

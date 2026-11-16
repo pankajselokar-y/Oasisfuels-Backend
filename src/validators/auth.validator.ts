@@ -3,11 +3,11 @@ import { mobile, name, phone, pin, vehicleInput } from './common.js';
 
 const otp = z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code from the SMS.');
 
-export const customerLoginBody = z.object({ phone, pin: z.string().min(1, 'PIN is required.') });
+export const customerLoginBody = z.object({ phone, pin: z.string().min(1, 'PIN is required.').max(20) });
 
 export const staffLoginBody = z.object({
-  username: z.string().trim().min(1, 'Username is required.'),
-  password: z.string().min(1, 'Password is required.'),
+  username: z.string().trim().min(1, 'Username is required.').max(64),
+  password: z.string().min(1, 'Password is required.').max(200),
 });
 
 /** Ask for a code by SMS. Registration and PIN reset are the two things a code unlocks. */
@@ -27,14 +27,14 @@ export const registerBody = z.object({
   otp: otp.optional(),
   vehicle: vehicleInput.optional(),
   /** A friend's mobile number. */
-  referralCode: z.string().trim().optional(),
+  referralCode: z.string().trim().max(20).optional(),
 });
 
 /** Everything about a sign-up that can be checked before a paid SMS code is sent. */
 export const checkRegistrationBody = z.object({
   phone: mobile,
   vehicle: vehicleInput.optional(),
-  referralCode: z.string().trim().optional(),
+  referralCode: z.string().trim().max(20).optional(),
 });
 
 export const refreshBody = z.object({ refreshToken: z.string().min(20, 'Invalid session.').max(200) });

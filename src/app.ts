@@ -3,8 +3,11 @@ import express from 'express';
 import helmet from 'helmet';
 import { env, isProduction } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import { noNulBytes } from './middlewares/noNulBytes.js';
+import { apiLimiter } from './middlewares/rateLimit.js';
 import { requestLogger } from './middlewares/requestLogger.js';
 import { apiRouter } from './routes/index.js';
+import { pageRoutes } from './routes/pages.js';
 
 export function createApp() {
   const app = express();
@@ -22,7 +25,10 @@ export function createApp() {
   app.use('/api/v1/fuel-entries', express.json({ limit: '8mb' }));
   app.use(express.json({ limit: '100kb' }));
 
-  app.use('/api/v1', apiRouter);
+  app.use('/api/v1', apiLimiter, noNulBytes, apiRouter);
+
+  // Public pages the Google Play listing links to: the privacy policy and how to delete an account.
+  app.use(pageRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

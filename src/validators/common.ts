@@ -22,6 +22,6 @@ export const idParam = z.object({ id: z.uuid('Invalid id.') });
 export const reviewStatus = z.enum(['PENDING', 'APPROVED', 'REJECTED']);
 
 export const vehicleInput = z.object({
-  number: z.string().trim().min(1, 'Vehicle number is required.'),
+  number: z.string().trim().min(1, 'Vehicle number is required.').max(20, 'That vehicle number is too long.'),
   model: z.string().trim().max(60).optional(),
 });

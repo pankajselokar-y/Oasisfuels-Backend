@@ -86,7 +86,8 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | | |
 |---|---|
 | `GET /me`, `PATCH /me` | profile + tier + `stats { redeemedCount, pendingPoints, availablePoints }`; rename |
-| `PATCH /me/pin` | `{ currentPin, newPin }` |
+| `PATCH /me/pin` | `{ currentPin, newPin }`; wrong guesses are limited to 10 per 15 minutes |
+| `DELETE /me` | `{ pin }`: **deletes the customer's own account** and everything that belongs to it (vehicles, points history, reward requests, fuel proofs with their photos, sessions). Asks for the PIN again; people they referred keep their accounts. Required by Google Play for apps that create accounts |
 | `GET /me/history` | points ledger, newest first |
 | `GET/POST /me/vehicles`, `PATCH/DELETE /me/vehicles/:vehicleId` | multiple vehicles; plate format validated |
 | `GET /fuel-claims/mine` | my fuel proofs (recorded by the cashier with each fill-up) and their status |
@@ -185,6 +186,9 @@ A real phone needs your PC's Wi-Fi IP (not `localhost`), and Windows Firewall mu
 
 - PINs/passwords are bcrypt-hashed; login failures are generic and rate-limited **per account** (10 failures / 15 min) and per IP.
   A 4-digit PIN is inherently weak — the limiter is what protects it. Behind a reverse proxy, set `app.set('trust proxy', …)`.
+- **Input limits** (so nothing can overflow the database or cause a 500): a fuel entry is at most ₹2,00,000 / 2,000 litres; the fuel rate ≤ ₹10,000, the minimum fill-up ≤ ₹1,00,000 and never below half the rate (or it would earn no points), the referral bonus ≤ 100,000; names ≤ 100 characters, vehicle models ≤ 60, plates ≤ 20, search ≤ 100. A GPS fix of exactly 0,0 is refused, and the NUL character is refused in any text.
+- **Rate limits:** the whole API per IP (generous, because a pump's Wi-Fi or a mobile carrier puts many users behind one address), the auth endpoints per IP, wrong logins per account (10 per 15 minutes) and wrong-PIN guesses on change-PIN / delete-account per customer.
+- **Public pages for the Google Play listing:** `GET /privacy` (privacy policy) and `GET /delete-account` (how to delete an account). They read `BUSINESS_NAME` and `SUPPORT_EMAIL` from the environment and describe what the app really stores, so keep them in step with the data model.
 - Set a strong `JWT_SECRET` (≥ 32 chars is enforced in production) and a specific `CORS_ORIGINS`.
 - Change the seeded demo passwords/PINs before any real deployment.
 - Fuel photos are served only to staff and to the customer they belong to. Customers cannot upload them: only cashiers do, with a fuel entry.

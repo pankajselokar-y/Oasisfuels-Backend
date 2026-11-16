@@ -16,7 +16,12 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
     throw unauthorized('Invalid or expired token.');
   }
 
-  if (payload.role !== 'CUSTOMER') {
+  if (payload.role === 'CUSTOMER') {
+    // A customer who deleted their account (on another device, say) must not keep working until their token expires.
+    if (!(await prisma.customer.findUnique({ where: { id: payload.sub }, select: { id: true } }))) {
+      throw unauthorized('This account no longer exists.');
+    }
+  } else {
     // A disabled or demoted staff member loses access immediately, not when the token expires.
     const staff = await StaffModel.findById(prisma, payload.sub);
     if (!staff || !staff.active) throw unauthorized('This account is no longer active.');

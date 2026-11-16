@@ -12,6 +12,13 @@ const schema = z
     CORS_ORIGINS: z.string().default('*'),
     /** Only used to read older proof photos that were saved as files; new photos are stored in the database. */
     UPLOAD_DIR: z.string().default('uploads'),
+    /** Shown on the public privacy / account-deletion pages. */
+    BUSINESS_NAME: z.string().trim().default('Oasis Fuel'),
+    SUPPORT_EMAIL: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => value || undefined),
     DEFAULT_CUSTOMER_PIN: z.string().regex(/^\d{4}$/, 'DEFAULT_CUSTOMER_PIN must be 4 digits').default('1234'),
     /**
      * SMS verification (a code texted at sign-up and on "forgot PIN"). OFF by default: the app works without sending any SMS.

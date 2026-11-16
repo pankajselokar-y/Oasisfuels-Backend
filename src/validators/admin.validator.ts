@@ -28,9 +28,9 @@ export const changeOwnPasswordBody = z.object({
 
 export const updateSettingsBody = z
   .object({
-    fuelRatePerLitre: z.coerce.number().int().positive().optional(),
-    minFuelAmountRupees: z.coerce.number().int().positive().optional(),
-    referralBonusPoints: z.coerce.number().int().nonnegative().optional(),
+    fuelRatePerLitre: z.coerce.number().int().positive().max(10_000, 'The fuel rate is too high.').optional(),
+    minFuelAmountRupees: z.coerce.number().int().positive().max(100_000, 'The minimum fill-up is too high.').optional(),
+    referralBonusPoints: z.coerce.number().int().nonnegative().max(100_000, 'The referral bonus is too high.').optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'Nothing to update.' });
 

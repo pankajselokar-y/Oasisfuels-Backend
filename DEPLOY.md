@@ -50,6 +50,7 @@ Environment variables (Project → Settings → Environment Variables, enable fo
 | `JWT_SECRET` | a random string of at least 32 characters |
 | `OTP_ENABLED` | leave unset (SMS verification is off). `true` also needs `FAST2SMS_API_KEY` |
 | `CORS_ORIGINS` | `*`, or your app's origins separated by commas |
+| `BUSINESS_NAME`, `SUPPORT_EMAIL` | shown on the public `/privacy` and `/delete-account` pages: put your real business name and a support email you read (Google Play asks for both) |
 
 Database migrations are **not** run by Vercel. Run them from your machine whenever the schema changes:
 `npm run db:deploy` (with `DATABASE_URL` pointing at the database).

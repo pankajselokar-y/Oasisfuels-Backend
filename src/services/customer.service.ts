@@ -144,6 +144,22 @@ export const CustomerService = {
     await CustomerModel.update(prisma, customerId, { pinHash: await hashSecret(newPin) });
   },
 
+  /**
+   * A customer deletes their own account (Google Play requires this to be possible inside the app). The PIN is asked for again.
+   * Everything that belongs to the customer goes with it: vehicles, points history, reward requests, fuel proofs and their
+   * photos, sign-ins and any SMS codes. People they referred keep their accounts.
+   */
+  async deleteAccount(customerId: string, pin: string) {
+    const customer = await CustomerModel.findById(prisma, customerId);
+    if (!customer) throw notFound('Customer not found.');
+    if (!(await verifySecret(pin, customer.pinHash))) throw badRequest('Current PIN is incorrect.');
+    await prisma.$transaction(async (tx) => {
+      await tx.refreshToken.deleteMany({ where: { subjectId: customerId } });
+      await tx.otpCode.deleteMany({ where: { phone: customer.phone } });
+      await tx.customer.delete({ where: { id: customerId } }); // the relations are ON DELETE CASCADE
+    });
+  },
+
   /** Forgot-PIN: sets a new PIN after the SMS code has been verified, spending that code atomically. */
   async resetPin(phone: string, newPin: string, otpId: string) {
     const pinHash = await hashSecret(newPin);

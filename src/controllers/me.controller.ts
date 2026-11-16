@@ -21,6 +21,11 @@ export const changePin: RequestHandler = async (req, res) => {
   ok(res, { changed: true });
 };
 
+export const deleteAccount: RequestHandler = async (req, res) => {
+  await CustomerService.deleteAccount(authOf(req).sub, req.body.pin);
+  ok(res, { deleted: true });
+};
+
 export const history: RequestHandler = async (req, res) => {
   const pagination = queryOf<Pagination>(req);
   const { transactions, total } = await CustomerService.history(authOf(req).sub, pagination);
