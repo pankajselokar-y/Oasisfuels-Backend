@@ -91,8 +91,9 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `GET /me/history` | points ledger, newest first |
 | `GET/POST /me/vehicles`, `PATCH/DELETE /me/vehicles/:vehicleId` | multiple vehicles; plate format validated |
 | `GET /fuel-claims/mine` | my fuel proofs (recorded by the cashier with each fill-up) and their status |
-| `POST /redemption-requests` | `{ rewardId }` |
-| `GET /redemption-requests/mine` | my requests |
+| `POST /redemption-requests` | `{ rewardId }` — the points leave the balance straight away |
+| `GET /redemption-requests/mine` | my requests (with handover photo link once the gift is handed over) |
+| `POST /redemption-requests/:id/cancel` | cancel my own pending request — the points come back |
 | `GET /rewards` | the reward catalog (any signed-in user) |
 
 **Staff** — `CASHIER` or `ADMIN`
@@ -105,7 +106,9 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `POST /fuel-claims/:id/approve` | `{ amountRupees? }` — credits points (defaults to the claimed amount) |
 | `POST /fuel-claims/:id/reject` | `{ reason? }` — the reason is shown to the customer next to the rejected proof |
 | `GET /redemption-requests?status=` | queue |
-| `POST /redemption-requests/:id/approve` \| `/reject` | approve deducts points and issues the item |
+| `POST /redemption-requests/:id/issue` | `{ photoDataUri, latitude, longitude, accuracy? }` — the gift was handed over: the geo-tagged photo is required and the request closes |
+| `POST /redemption-requests/:id/reject` | `{ reason? }` — cancels the request and returns the points |
+| `GET /redemption-requests/:id/photo` | handover photo (the customer who owns it, or staff); `?as=dataUri` for the app |
 | `PATCH /staff/me/password` | `{ currentPassword, newPassword }` |
 
 **Cashier only**
@@ -131,8 +134,13 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
   transaction as the account. A self-referral or unknown code is rejected and nothing is created (the SMS code stays usable,
   so the customer can correct it). Walk-in customers registered by a cashier with a referral code earn it too.
 - **Vehicles:** `MH 36 AD 2861`, `MH 48 D 9886` and Bharat-series `22 BH 8667 CD` formats; stored spaced and uppercased; unique per customer.
-- **Redemption:** customers *request*; points are deducted only when staff approve. Points promised to pending requests aren't
-  spendable twice, a customer can't have two pending requests for one reward, and an approval can't overdraw (`CHECK points >= 0`).
+- **Redemption:** a customer *requests* a gift and the points are **deducted immediately** (a `REDEEM` ledger row), so they can't be
+  spent twice. They visit the pump; staff photograph the handover (camera-only, stamped with date, time and GPS like a fuel proof) and
+  `issue` it. If the request is cancelled (by the customer, or rejected by staff) the points are returned once as an `EARN`
+  ledger row `Refund: <reward>` (balance only, so lifetime points and the tier don't change). A customer can't have two pending
+  requests for one reward, and concurrent cancel/issue/reject can't double-refund. Requests made before this change have no
+  `pointsDeductedAt`; they keep the old behaviour (points held, taken at hand-over, nothing to refund). The customer's history shows
+  the last 30/45/90 days. Migration `20261117100000_redemption_handover` must be applied (`npm run db:deploy`) before this code runs.
 - **Fuel proofs:** only cashiers create them, as part of recording a fill-up: vehicle + amount + dashboard photo + GPS. The proof is
   stored already approved (the cashier vouches for it) and shows in the customer's history. A fill-up that fails (bad plate,
   amount below the minimum, not an image...) records nothing and leaves no photo behind. Proofs submitted by customers before

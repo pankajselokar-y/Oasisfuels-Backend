@@ -27,6 +27,8 @@ enum TransactionSource {
   FUEL_CLAIM
   REFERRAL
   REDEMPTION
+  /// Points handed back because a redemption request was cancelled or rejected.
+  REDEMPTION_REFUND
 }
 
 enum OtpPurpose {
@@ -145,6 +147,22 @@ model RedemptionRequest {
   requestedAt  DateTime     @default(now())
   resolvedAt   DateTime?
   resolvedById String?      @db.Uuid
+
+  /// When the points were taken from the customer: the moment they asked for the gift. Null on requests made before points
+  /// were taken up front; those still hold the points until a staff member hands the gift over.
+  pointsDeductedAt    DateTime?
+  /// When the points were given back because the request was cancelled or rejected.
+  refundedAt          DateTime?
+  rejectionReason     String?
+  /// True when the customer cancelled their own request (as opposed to staff rejecting it).
+  cancelledByCustomer Boolean   @default(false)
+  /// The handover: a photo of the customer receiving the gift, and where it was taken. The bytes are left out of normal
+  /// queries (see lib/prisma.ts); the mime type says whether a photo exists.
+  handoverPhoto       Bytes?
+  handoverPhotoMime   String?
+  handoverLatitude    Float?
+  handoverLongitude   Float?
+  handoverAccuracy    Float?
 
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   reward     Reward   @relation(fields: [rewardId], references: [id])

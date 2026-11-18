@@ -51,3 +51,16 @@ export async function debitPoints(
     performedById: input.staffId ?? null,
   });
 }
+
+/** Returns the points of a cancelled or rejected redemption: back into the balance, as a ledger row the customer can see. */
+export async function refundPoints(db: Db, input: { customerId: string; points: number; label: string; staffId?: string }) {
+  await CustomerModel.refund(db, input.customerId, input.points);
+  return TransactionModel.create(db, {
+    customerId: input.customerId,
+    type: 'EARN',
+    source: 'REDEMPTION_REFUND',
+    label: input.label,
+    amount: input.points,
+    performedById: input.staffId ?? null,
+  });
+}

@@ -23,6 +23,7 @@ export function createApp() {
   app.use(requestLogger);
   // A fuel entry carries the dashboard photo as a base64 data URI, so that route gets a larger body limit.
   app.use('/api/v1/fuel-entries', express.json({ limit: '8mb' }));
+app.use('/api/v1/redemption-requests', express.json({ limit: '8mb' }));
   app.use(express.json({ limit: '100kb' }));
 
   app.use('/api/v1', apiLimiter, noNulBytes, apiRouter);

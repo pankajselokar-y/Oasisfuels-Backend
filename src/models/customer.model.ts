@@ -59,6 +59,9 @@ export const CustomerModel = {
       data: { points: { increment: points }, lifetimePoints: { increment: points } },
     }),
 
+  /** Gives points back (a cancelled redemption). Only the spendable balance grows; lifetime points and the tier do not. */
+  refund: (db: Db, id: string, points: number) => db.customer.update({ where: { id }, data: { points: { increment: points } } }),
+
   /** Removes points only if the balance covers it. Returns false when it does not. */
   debit: async (db: Db, id: string, points: number) => {
     const result = await db.customer.updateMany({

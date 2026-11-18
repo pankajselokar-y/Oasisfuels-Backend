@@ -88,11 +88,11 @@ export function formatStampTime(at: Date): string {
 }
 
 /** The three lines printed on the photo. */
-export function stampLines(geo: GeoStamp): string[] {
+export function stampLines(geo: GeoStamp, label = 'OASIS FUEL'): string[] {
   const lat = `${Math.abs(geo.latitude).toFixed(5)} ${geo.latitude >= 0 ? 'N' : 'S'}`;
   const lon = `${Math.abs(geo.longitude).toFixed(5)} ${geo.longitude >= 0 ? 'E' : 'W'}`;
   const accuracy = geo.accuracy != null ? `  ACC ${Math.round(geo.accuracy)} M` : '';
-  return [formatStampTime(geo.at), `LAT ${lat}  LON ${lon}${accuracy}`, 'OASIS FUEL'];
+  return [formatStampTime(geo.at), `LAT ${lat}  LON ${lon}${accuracy}`, label];
 }
 
 function drawText(rgba: Uint8Array, width: number, height: number, text: string, x: number, y: number, scale: number) {
@@ -125,11 +125,11 @@ function drawText(rgba: Uint8Array, width: number, height: number, text: string,
  * Returns the JPEG with the geo-tag printed on it. Throws if the image cannot be read; callers should keep the original photo
  * in that case, so a problem with stamping never blocks a fuel entry.
  */
-export function stampJpeg(photo: Buffer, geo: GeoStamp): Buffer {
+export function stampJpeg(photo: Buffer, geo: GeoStamp, label?: string): Buffer {
   const image = jpeg.decode(photo, { useTArray: true, formatAsRGBA: true, maxResolutionInMP: 30, maxMemoryUsageInMB: 160 });
   const { width, height, data } = image;
 
-  const lines = stampLines(geo);
+  const lines = stampLines(geo, label);
   const widest = Math.max(...lines.map((line) => line.length));
   // As large as reads well, but never wider than the photo: about 1 pixel of text per 85 of width, at least 2x.
   const fit = Math.floor((width * 0.94) / (widest * (GLYPH_W + 1)));

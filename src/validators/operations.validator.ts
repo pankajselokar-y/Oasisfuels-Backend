@@ -50,3 +50,19 @@ export const rejectClaimBody = z.object({ reason: z.string().trim().max(300).opt
 export const reviewListQuery = paginationQuery.extend({ status: reviewStatus.optional() });
 
 export const requestRedemptionBody = z.object({ rewardId: z.string().trim().min(1, 'Choose a reward.').max(64) });
+
+/** Staff hand a gift over: a photo taken at the pump and where it was taken. */
+export const issueRedemptionBody = z
+  .object({
+    latitude: z.coerce.number().min(-90).max(90),
+    longitude: z.coerce.number().min(-180).max(180),
+    accuracy: z.coerce.number().nonnegative().optional(),
+    photoDataUri: z
+      .string()
+      .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, 'The photo must be a JPEG, PNG or WebP image.'),
+  })
+  .refine((v) => !(v.latitude === 0 && v.longitude === 0), {
+    message: 'The GPS location is missing. Let the phone read its location and try again.',
+  });
+
+export const rejectRedemptionBody = z.object({ reason: z.string().trim().max(300).optional() });

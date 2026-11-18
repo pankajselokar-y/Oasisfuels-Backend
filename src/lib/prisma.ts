@@ -7,10 +7,10 @@ const adapter = new PrismaPg({ connectionString: env.DATABASE_URL, max: process.
 
 // Prisma's default transaction limit is 5 s. Several of ours do a dozen queries (sign-up with a referral, approvals), and when
 // the database is in another region each query costs a few hundred ms, so allow far more headroom than the default.
-// `photoData` (the proof photos) is left out of every query by default so lists of claims stay light; the photo endpoint asks for it.
+// The photo bytes (fuel proofs, gift handovers) are left out of every query by default so lists stay light; the photo endpoints ask for them.
 export const prisma = new PrismaClient({
   adapter,
-  omit: { fuelClaim: { photoData: true } },
+  omit: { fuelClaim: { photoData: true }, redemptionRequest: { handoverPhoto: true } },
   transactionOptions: { maxWait: 10_000, timeout: 30_000 },
 });
 

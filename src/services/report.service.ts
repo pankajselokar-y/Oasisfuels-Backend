@@ -122,7 +122,7 @@ export const ReportService = {
       CustomerModel.totals(prisma),
       RedemptionModel.count(prisma, 'PENDING'),
       FuelClaimModel.count(prisma, 'PENDING'),
-      TransactionModel.totalRedeemed(prisma),
+      RedemptionModel.issuedPointsTotal(prisma),
       RedemptionModel.countIssued(prisma, since),
       ReportService.inactiveVehicleCount(),
     ]);

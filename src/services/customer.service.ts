@@ -109,8 +109,8 @@ export const CustomerService = {
     const customer = await CustomerModel.findById(prisma, customerId);
     if (!customer) throw notFound('Customer not found.');
     const [redeemedCount, pendingPoints] = await Promise.all([
-      TransactionModel.redeemedCountFor(prisma, customerId),
-      RedemptionModel.pendingPoints(prisma, customerId),
+      RedemptionModel.issuedCountFor(prisma, customerId),
+      RedemptionModel.legacyHeldPoints(prisma, customerId),
     ]);
     return {
       customer,

@@ -43,7 +43,8 @@ export const transactionDto = (t: PointTransaction & { performedBy?: { id: strin
   createdAt: t.createdAt,
 });
 
-export const redemptionDto = (r: RedemptionRequest & { customer?: Person; resolvedBy?: Person }) => ({
+// The handover photo bytes are never loaded with a request (lib/prisma.ts omits them).
+export const redemptionDto = (r: Omit<RedemptionRequest, 'handoverPhoto'> & { customer?: Person; resolvedBy?: Person }) => ({
   id: r.id,
   status: r.status,
   reward: { id: r.rewardId, name: r.rewardName, icon: r.rewardIcon, points: r.points },
@@ -51,6 +52,18 @@ export const redemptionDto = (r: RedemptionRequest & { customer?: Person; resolv
   requestedAt: r.requestedAt,
   resolvedAt: r.resolvedAt,
   resolvedBy: r.resolvedBy?.name ?? null,
+  /** The points were taken when the customer asked (false only for old requests that were waiting to be paid at hand-over). */
+  pointsDeducted: r.pointsDeductedAt !== null,
+  /** The points went back to the customer (cancelled or rejected). */
+  refunded: r.refundedAt !== null,
+  cancelledByCustomer: r.cancelledByCustomer,
+  rejectionReason: r.rejectionReason,
+  handover: r.handoverPhotoMime
+    ? {
+        photoUrl: `/api/v1/redemption-requests/${r.id}/photo`,
+        location: { latitude: r.handoverLatitude, longitude: r.handoverLongitude, accuracy: r.handoverAccuracy },
+      }
+    : null,
 });
 
 // The photo bytes are never loaded with a claim (lib/prisma.ts omits them), so they are not part of this type either.

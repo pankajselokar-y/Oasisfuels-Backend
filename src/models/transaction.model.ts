@@ -26,12 +26,4 @@ export const TransactionModel = {
     }),
 
   countForCustomer: (db: Db, customerId: string) => db.pointTransaction.count({ where: { customerId } }),
-
-  redeemedCountFor: (db: Db, customerId: string) =>
-    db.pointTransaction.count({ where: { customerId, type: 'REDEEM' } }),
-
-  totalRedeemed: async (db: Db) => {
-    const sum = await db.pointTransaction.aggregate({ where: { type: 'REDEEM' }, _sum: { amount: true } });
-    return sum._sum.amount ?? 0;
-  },
 };
