@@ -7,7 +7,7 @@ import { env } from '../config/env.js';
  */
 export const pageRoutes = Router();
 
-const LAST_UPDATED = '16 November 2026';
+const LAST_UPDATED = '18 November 2026';
 
 const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -54,7 +54,8 @@ const privacyHtml = page(
   <li><b>Vehicles:</b> the vehicle numbers and models you add, or that our cashier enters when you fuel.</li>
   <li><b>Fuel records:</b> each fill-up (amount, litres, date and time) and the reward points it earned.</li>
   <li><b>Location and photo at the pump:</b> when you fuel, our cashier's device records the GPS position and takes a photo of your vehicle's dashboard. The photo is stamped with the date, time and position. This is used to verify that the fill-up really happened.</li>
-  <li><b>Rewards and referrals:</b> the rewards you request or receive, and who referred you or whom you referred (by mobile number).</li>
+  <li><b>Gift handover photo:</b> when you collect a reward gift at the pump, our staff take a photo of the handover. It is stamped with the date, time and GPS position and shown in your history. This is used to record that the gift was received.</li>
+  <li><b>Rewards and referrals:</b> the rewards you request or receive (the points for a gift are deducted when you request it and returned if the request is cancelled), and who referred you or whom you referred (by mobile number).</li>
 </ul>
 <p>The app does not use advertising or analytics trackers, and we do not sell your information.</p>
 
@@ -99,7 +100,7 @@ const deleteHtml = page(
 <ul>
   <li>Your name, mobile number and PIN.</li>
   <li>Your vehicles, points history and any unused points.</li>
-  <li>Your reward requests and fuel records, including the dashboard photos and locations.</li>
+  <li>Your reward requests and fuel records, including the dashboard and gift handover photos and locations.</li>
 </ul>
 <p>This cannot be undone. People you referred keep their own accounts. You can create a new account at any time, but it starts with no points.</p>
 
