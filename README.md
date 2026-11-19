@@ -123,7 +123,7 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
 | `GET /reports/issued-items?days=45` (or `?from=YYYY-MM-DD&to=YYYY-MM-DD` for a custom range) | items handed over; `days` = a number or `all`; includes summary and per-item counts |
 | `GET /reports/inactive-vehicles?days=30&page=1&pageSize=20` | **Inactive-vehicle alert**: vehicles with no *approved* fuel fill for more than `days` days (default 30), longest quiet first, each with its customer's name and phone. A vehicle that never filled counts from the day it was added. Fills match a vehicle by id or by plate number |
 | `GET/POST /staff`, `PATCH /staff/:id`, `PATCH /staff/:id/active` | manage staff (edit name/username/password; enable/disable) |
-| `PATCH /settings` | `fuelRatePerLitre`, `minFuelAmountRupees`, `referralBonusPoints` (`GET /settings` is public, so the sign-up screen can show the real bonus) |
+| `PATCH /settings` | `fuelRatePerLitre` (₹ per litre, up to 2 decimals, e.g. `99.38`; minimum 1), `minFuelAmountRupees`, `referralBonusPoints`, `pumpLatitude`/`pumpLongitude` (both, or `null` to switch the check off), `geofenceMeters` (50-2000) (`GET /settings` is public, so the sign-up screen can show the real bonus) |
 
 ## Business rules (ported from the app)
 
@@ -134,6 +134,8 @@ List endpoints take `?page=&pageSize=` and return `meta: { page, pageSize, total
   transaction as the account. A self-referral or unknown code is rejected and nothing is created (the SMS code stays usable,
   so the customer can correct it). Walk-in customers registered by a cashier with a referral code earn it too.
 - **Vehicles:** `MH 36 AD 2861`, `MH 48 D 9886` and Bharat-series `22 BH 8667 CD` formats; stored spaced and uppercased; unique per customer.
+- **No duplicates:** a phone number, a staff username (case-insensitive) and a vehicle plate each exist once. A plate belongs to one customer, whoever adds it (customer, staff, sign-up); the database enforces it, so two requests at the same moment can't both win, and an owner can remove a plate so it can be registered again. A fuel entry for the same customer, vehicle and amount within 10 minutes is refused as an accidental repeat (nothing is credited twice); entries for one customer are processed one at a time, so simultaneous repeats can't slip through. A customer can't have two pending requests for the same reward. Migration `20261118120000_unique_vehicle_plate` fails harmlessly if two customers already share a plate.
+- **Photos must be taken at the pump:** an admin sets the pump's location once (Program Settings, 'Set to my current location'), and fuel-proof and gift-handover photos are then only accepted when the phone's GPS is within `geofenceMeters` (default 200 m) of it and accurate to within that radius too. The app tells the cashier how far away they are and discards a photo taken too far away; the server checks again, so the rule can't be skipped. Until the location is set nothing is checked. GPS can be spoofed by a determined person with a mock-location app, so this stops honest mistakes and casual misuse rather than deliberate fraud. Migration `20261119120000_pump_geofence`.
 - **Redemption:** a customer *requests* a gift and the points are **deducted immediately** (a `REDEEM` ledger row), so they can't be
   spent twice. They visit the pump; staff photograph the handover (camera-only, stamped with date, time and GPS like a fuel proof) and
   `issue` it. If the request is cancelled (by the customer, or rejected by staff) the points are returned once as an `EARN`

@@ -56,6 +56,21 @@ export const ReportService = {
       byItem.set(item.rewardId, entry);
     }
 
+    // Who received how many gifts in this period, most first.
+    const byCustomer = new Map<string, { customerId: string; name: string; phone: string; count: number; points: number }>();
+    for (const item of items) {
+      const entry = byCustomer.get(item.customerId) ?? {
+        customerId: item.customerId,
+        name: item.customer.name,
+        phone: item.customer.phone,
+        count: 0,
+        points: 0,
+      };
+      entry.count += 1;
+      entry.points += item.points;
+      byCustomer.set(item.customerId, entry);
+    }
+
     return {
       periodDays: custom ? null : window.days,
       from: since,
@@ -66,6 +81,7 @@ export const ReportService = {
         customerCount: new Set(items.map((i) => i.customerId)).size,
       },
       byItem: [...byItem.values()].sort((a, b) => b.count - a.count),
+      byCustomer: [...byCustomer.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
       items,
     };
   },
@@ -118,20 +134,28 @@ export const ReportService = {
   /** The admin dashboard's headline numbers. */
   async dashboard() {
     const since = new Date(Date.now() - ISSUE_LOG_DEFAULT_DAYS * DAY_MS);
-    const [totals, pendingRedemptions, pendingFuelClaims, pointsRedeemed, issuedRecently, inactiveVehicles] = await Promise.all([
-      CustomerModel.totals(prisma),
-      RedemptionModel.count(prisma, 'PENDING'),
-      FuelClaimModel.count(prisma, 'PENDING'),
-      RedemptionModel.issuedPointsTotal(prisma),
-      RedemptionModel.countIssued(prisma, since),
-      ReportService.inactiveVehicleCount(),
-    ]);
+    const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
+    const [totals, pendingRedemptions, pendingFuelClaims, pointsRedeemed, issuedRecently, inactiveVehicles, g30, g60, g90, gAll] =
+      await Promise.all([
+        CustomerModel.totals(prisma),
+        RedemptionModel.count(prisma, 'PENDING'),
+        FuelClaimModel.count(prisma, 'PENDING'),
+        RedemptionModel.issuedPointsTotal(prisma),
+        RedemptionModel.countIssued(prisma, since),
+        ReportService.inactiveVehicleCount(),
+        RedemptionModel.issuedStats(prisma, daysAgo(30)),
+        RedemptionModel.issuedStats(prisma, daysAgo(60)),
+        RedemptionModel.issuedStats(prisma, daysAgo(90)),
+        RedemptionModel.issuedStats(prisma, null),
+      ]);
     return {
       ...totals,
       pendingRedemptions,
       pendingFuelClaims,
       pointsRedeemed,
       itemsIssuedLast45Days: issuedRecently,
+      /** Gifts handed over to customers (count and points), for the admin's track record. */
+      giftsIssued: { last30Days: g30, last60Days: g60, last90Days: g90, allTime: gAll },
       inactiveVehicles,
       inactiveVehicleDays: INACTIVE_VEHICLE_DAYS,
     };

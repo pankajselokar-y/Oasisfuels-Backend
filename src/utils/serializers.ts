@@ -96,6 +96,10 @@ export const settingsDto = (s: Setting) => ({
   fuelRatePerLitre: s.fuelRatePerLitre,
   minFuelAmountRupees: s.minFuelAmountRupees,
   referralBonusPoints: s.referralBonusPoints,
+  /** Where the pump is (null until an admin sets it) and how close to it photos must be taken, in metres. */
+  pumpLatitude: s.pumpLatitude,
+  pumpLongitude: s.pumpLongitude,
+  geofenceMeters: s.geofenceMeters,
   /** Whether sign-up / forgot-PIN use an SMS code; the app hides those steps when false. */
   otpEnabled: env.OTP_ENABLED,
   updatedAt: s.updatedAt,

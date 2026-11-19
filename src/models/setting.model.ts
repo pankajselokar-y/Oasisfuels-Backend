@@ -5,6 +5,10 @@ export interface SettingChanges {
   fuelRatePerLitre?: number;
   minFuelAmountRupees?: number;
   referralBonusPoints?: number;
+  /** Null clears the pump location (and with it the photo-distance check). */
+  pumpLatitude?: number | null;
+  pumpLongitude?: number | null;
+  geofenceMeters?: number;
 }
 
 export const SettingModel = {

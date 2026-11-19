@@ -8,6 +8,8 @@ import type { Role } from '../lib/jwt.js';
 import { CustomerModel } from '../models/customer.model.js';
 import { RedemptionModel } from '../models/redemption.model.js';
 import { RewardModel } from '../models/reward.model.js';
+import { SettingModel } from '../models/setting.model.js';
+import { assertAtPump } from '../utils/geofence.js';
 import { badRequest, conflict, forbidden, notFound } from '../utils/AppError.js';
 import { isUniqueViolation } from '../utils/prismaErrors.js';
 import { toSkipTake, type Pagination } from '../utils/pagination.js';
@@ -97,6 +99,8 @@ export const RedemptionService = {
    * closes. A request made before points were taken up front pays its points now instead.
    */
   async issue(id: string, staffId: string, handover: HandoverInput) {
+    // The handover photo must be taken at the pump too (within the allowed radius, once the pump is located).
+    assertAtPump(await SettingModel.get(prisma), handover);
     const mime = detectImageType(handover.photo);
     if (!mime || !(ALLOWED_PHOTO_TYPES as readonly string[]).includes(mime)) {
       throw badRequest('The photo must be a JPEG, PNG or WebP image.');

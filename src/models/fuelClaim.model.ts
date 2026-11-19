@@ -26,6 +26,20 @@ export interface NewVerifiedFuelClaim {
 }
 
 export const FuelClaimModel = {
+  /** A recent fill-up (not rejected) of the same customer, vehicle and amount: the sign of an accidental repeat. */
+  findRecentSame: (db: Db, q: { customerId: string; vehicleNumber: string; amountRupees: number; since: Date }) =>
+    db.fuelClaim.findFirst({
+      where: {
+        customerId: q.customerId,
+        vehicleNumber: q.vehicleNumber,
+        claimedAmountRupees: q.amountRupees,
+        status: { in: ['PENDING', 'APPROVED'] },
+        submittedAt: { gte: q.since },
+      },
+      orderBy: { submittedAt: 'desc' },
+      select: { id: true, submittedAt: true },
+    }),
+
   createVerified: (db: Db, { photo, ...data }: NewVerifiedFuelClaim) =>
     db.fuelClaim.create({
       data: {

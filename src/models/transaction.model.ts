@@ -25,5 +25,13 @@ export const TransactionModel = {
       take,
     }),
 
+  /** A fuel entry of the same amount for this customer very recently (used when an entry has no vehicle to compare). */
+  findRecentFuelEntry: (db: Db, customerId: string, amountRupees: number, since: Date) =>
+    db.pointTransaction.findFirst({
+      where: { customerId, source: 'FUEL_ENTRY', fuelAmountRupees: amountRupees, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, createdAt: true },
+    }),
+
   countForCustomer: (db: Db, customerId: string) => db.pointTransaction.count({ where: { customerId } }),
 };

@@ -97,8 +97,9 @@ model Vehicle {
   customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
   fuelClaims FuelClaim[]
 
-  @@unique([customerId, numberKey])
-  @@index([numberKey])
+  /// A plate belongs to one customer: the same vehicle cannot be on two profiles (it would earn points twice).
+  @@unique([numberKey])
+  @@index([customerId])
 }
 
 /// Reward catalog (the "schemes"). `id` is a stable slug such as "thermos-cup-set".
@@ -240,8 +241,14 @@ model RefreshToken {
 /// Single-row table (id = 1) holding the program rules that admins can tune.
 model Setting {
   id                  Int      @id @default(1)
-  fuelRatePerLitre    Int      @default(100)
+  /// Rupees per litre, with up to 2 decimals (e.g. 99.38). Points are earned per litre, so rupees / rate, rounded.
+  fuelRatePerLitre    Float    @default(100)
   minFuelAmountRupees Int      @default(500)
   referralBonusPoints Int      @default(100)
+  /// Where the pump is. Once set, fuel and gift-handover photos are only accepted when taken within `geofenceMeters` of it.
+  /// Null until an admin sets it (nothing is checked before that).
+  pumpLatitude        Float?
+  pumpLongitude       Float?
+  geofenceMeters      Int      @default(200)
   updatedAt           DateTime @updatedAt
 }

@@ -39,5 +39,9 @@ export const INACTIVE_VEHICLE_DAYS = 30;
 
 // Upper bounds for what one fuel entry may claim. They stop typos (an extra zero) and keep every value inside the database's
 // 32-bit integer columns, so no input can overflow into a server error.
+// The same customer, vehicle and amount recorded again within this many minutes is treated as an accidental repeat (a double
+// tap, or a retry after a bad network) and refused, so points can never be credited twice for one fill-up.
+export const FUEL_DUPLICATE_WINDOW_MINUTES = 10;
+
 export const MAX_FUEL_RUPEES = 200_000;
 export const MAX_FUEL_LITRES = 2_000;

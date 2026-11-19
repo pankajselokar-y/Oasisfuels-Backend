@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma, type Db } from '../lib/prisma.js';
 import { VehicleModel } from '../models/vehicle.model.js';
 import { badRequest, conflict, notFound } from '../utils/AppError.js';
 import { isUniqueViolation } from '../utils/prismaErrors.js';
@@ -16,16 +16,34 @@ export function prepareVehicle(input: VehicleInput) {
   return { model: (input.model ?? '').trim(), number, numberKey: compactVehicleNumber(number) };
 }
 
-const DUPLICATE = 'This vehicle number is already on your profile.';
+export const PLATE_ON_OWN_PROFILE = 'This vehicle number is already on your profile.';
+export const PLATE_ON_OTHER_PROFILE = 'This vehicle number is already registered to another customer.';
+
+/**
+ * A plate belongs to exactly one customer, whoever adds it (the customer, or staff on their behalf), so the same vehicle can
+ * never earn points on two profiles. `customerId` is the person who would hold it; `exceptVehicleId` is a vehicle being edited.
+ */
+export async function assertPlateAvailable(
+  db: Db,
+  numberKey: string,
+  { customerId, exceptVehicleId }: { customerId?: string; exceptVehicleId?: string } = {},
+) {
+  const holder = await VehicleModel.findByKey(db, numberKey);
+  if (!holder || holder.id === exceptVehicleId) return;
+  throw conflict(customerId && holder.customerId === customerId ? PLATE_ON_OWN_PROFILE : PLATE_ON_OTHER_PROFILE);
+}
 
 export const VehicleService = {
   list: (customerId: string) => VehicleModel.listByCustomer(prisma, customerId),
 
   async add(customerId: string, input: VehicleInput) {
+    const vehicle = prepareVehicle(input);
+    await assertPlateAvailable(prisma, vehicle.numberKey, { customerId });
     try {
-      return await VehicleModel.create(prisma, customerId, prepareVehicle(input));
+      return await VehicleModel.create(prisma, customerId, vehicle);
     } catch (error) {
-      if (isUniqueViolation(error)) throw conflict(DUPLICATE);
+      // Two requests for the same plate at the same moment: the database lets only one through.
+      if (isUniqueViolation(error)) throw conflict(PLATE_ON_OTHER_PROFILE);
       throw error;
     }
   },
@@ -33,10 +51,12 @@ export const VehicleService = {
   async update(customerId: string, vehicleId: string, input: VehicleInput) {
     const existing = await VehicleModel.findOwned(prisma, customerId, vehicleId);
     if (!existing) throw notFound('Vehicle not found.');
+    const vehicle = prepareVehicle(input);
+    await assertPlateAvailable(prisma, vehicle.numberKey, { customerId, exceptVehicleId: vehicleId });
     try {
-      return await VehicleModel.update(prisma, vehicleId, prepareVehicle(input));
+      return await VehicleModel.update(prisma, vehicleId, vehicle);
     } catch (error) {
-      if (isUniqueViolation(error)) throw conflict(DUPLICATE);
+      if (isUniqueViolation(error)) throw conflict(PLATE_ON_OTHER_PROFILE);
       throw error;
     }
   },

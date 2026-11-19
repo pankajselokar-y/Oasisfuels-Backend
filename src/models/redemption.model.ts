@@ -109,6 +109,16 @@ export const RedemptionModel = {
   countIssued: (db: Db, since: Date) =>
     db.redemptionRequest.count({ where: { status: 'APPROVED', resolvedAt: { gte: since } } }),
 
+  /** How many gifts were handed over since a date (all time when null), and the points they were worth. */
+  issuedStats: async (db: Db, since: Date | null) => {
+    const sum = await db.redemptionRequest.aggregate({
+      where: { status: 'APPROVED', ...(since ? { resolvedAt: { gte: since } } : {}) },
+      _count: { _all: true },
+      _sum: { points: true },
+    });
+    return { count: sum._count._all, points: sum._sum?.points ?? 0 };
+  },
+
   /** Approved requests resolved on/after `since` (or all time when null), newest first. */
   listIssued: (db: Db, since: Date | null, until: Date | null = null) =>
     db.redemptionRequest.findMany({

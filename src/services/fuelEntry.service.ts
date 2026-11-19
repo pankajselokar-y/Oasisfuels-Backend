@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ALLOWED_PHOTO_TYPES } from '../config/constants.js';
+import { ALLOWED_PHOTO_TYPES, FUEL_DUPLICATE_WINDOW_MINUTES } from '../config/constants.js';
 import { logger } from '../lib/logger.js';
 import { stampJpeg } from '../lib/photoStamp.js';
 import { prisma } from '../lib/prisma.js';
@@ -7,11 +7,13 @@ import { detectImageType } from '../lib/storage.js';
 import { CustomerModel } from '../models/customer.model.js';
 import { FuelClaimModel } from '../models/fuelClaim.model.js';
 import { SettingModel } from '../models/setting.model.js';
+import { TransactionModel } from '../models/transaction.model.js';
 import { VehicleModel } from '../models/vehicle.model.js';
-import { badRequest, notFound } from '../utils/AppError.js';
+import { badRequest, conflict, notFound } from '../utils/AppError.js';
 import { pointsForAmount } from '../utils/fuel.js';
+import { assertAtPump } from '../utils/geofence.js';
 import { creditPoints } from './points.service.js';
-import { prepareVehicle } from './vehicle.service.js';
+import { PLATE_ON_OTHER_PROFILE, prepareVehicle } from './vehicle.service.js';
 
 const log = logger('fuel-entry');
 
@@ -36,6 +38,8 @@ export const FuelEntryService = {
     // in the claim row itself, so nothing is written to disk (hosts like Vercel have no persistent disk).
     let saved: { id: string; photo: Buffer; mime: string } | null = null;
     if (input.proof) {
+      // The photo and its GPS position must come from the pump itself (within the allowed radius, once the pump is located).
+      assertAtPump(await SettingModel.get(prisma), input.proof);
       const mime = detectImageType(input.proof.photo);
       if (!mime || !(ALLOWED_PHOTO_TYPES as readonly string[]).includes(mime)) {
         throw badRequest('The photo must be a JPEG, PNG or WebP image.');
@@ -60,6 +64,9 @@ export const FuelEntryService = {
     }
 
     return prisma.$transaction(async (tx) => {
+      // Entries for one customer are handled one at a time, so two identical requests arriving together cannot both pass the
+      // duplicate check below (the lock is released when the transaction ends).
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.customerId}))`;
       const settings = await SettingModel.get(tx);
       const amountRupees = input.amountRupees ?? Math.round((input.litres ?? 0) * settings.fuelRatePerLitre);
       const points = pointsForAmount(settings, amountRupees);
@@ -75,8 +82,35 @@ export const FuelEntryService = {
           vehicle = { vehicleId: owned.id, vehicleModel: owned.model, vehicleNumber: owned.number };
         } else {
           const typed = prepareVehicle({ number: input.proof.vehicleNumber ?? '', model: input.proof.vehicleModel });
-          vehicle = { vehicleId: null, vehicleModel: typed.model, vehicleNumber: typed.number };
+          // A plate saved by another customer cannot be used here, and one saved by this customer is simply that vehicle.
+          const holder = await VehicleModel.findByKey(tx, typed.numberKey);
+          if (holder && holder.customerId !== input.customerId) throw conflict(PLATE_ON_OTHER_PROFILE);
+          vehicle = holder
+            ? { vehicleId: holder.id, vehicleModel: holder.model, vehicleNumber: holder.number }
+            : { vehicleId: null, vehicleModel: typed.model, vehicleNumber: typed.number };
         }
+      }
+
+      // The same customer, vehicle and amount again within a few minutes is an accidental repeat (a double tap, or a retry
+      // after a bad network), not a new fill-up.
+      const since = new Date(Date.now() - FUEL_DUPLICATE_WINDOW_MINUTES * 60_000);
+      const minutesAgo = (at: Date) => Math.max(1, Math.round((Date.now() - at.getTime()) / 60_000));
+      const repeatAt = vehicle
+        ? ((
+            await FuelClaimModel.findRecentSame(tx, {
+              customerId: input.customerId,
+              vehicleNumber: vehicle.vehicleNumber,
+              amountRupees,
+              since,
+            })
+          )?.submittedAt ?? null)
+        : ((await TransactionModel.findRecentFuelEntry(tx, input.customerId, amountRupees, since))?.createdAt ?? null);
+      if (repeatAt) {
+        const what = vehicle ? `₹${amountRupees.toLocaleString('en-IN')} for ${vehicle.vehicleNumber}` : `₹${amountRupees.toLocaleString('en-IN')}`;
+        throw conflict(
+          `This looks like a duplicate: ${what} was already recorded ${minutesAgo(repeatAt)} minute(s) ago, and the points were added. ` +
+            `If this is really a second fill-up, wait ${FUEL_DUPLICATE_WINDOW_MINUTES} minutes or change the amount.`,
+        );
       }
 
       const { customer, transaction, unlockedRewards } = await creditPoints(tx, {

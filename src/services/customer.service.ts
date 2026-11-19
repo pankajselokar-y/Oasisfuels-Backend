@@ -9,7 +9,7 @@ import { badRequest, conflict, notFound } from '../utils/AppError.js';
 import { isUniqueViolation } from '../utils/prismaErrors.js';
 import { toSkipTake, type Pagination } from '../utils/pagination.js';
 import { creditPoints } from './points.service.js';
-import { prepareVehicle, type VehicleInput } from './vehicle.service.js';
+import { PLATE_ON_OTHER_PROFILE, assertPlateAvailable, prepareVehicle, type VehicleInput } from './vehicle.service.js';
 
 export interface NewAccount {
   name: string;
@@ -30,10 +30,10 @@ export const CustomerService = {
     if (input.vehicle?.model && !input.vehicle.number?.trim()) {
       throw badRequest('Enter the vehicle number along with the vehicle model.');
     }
-    if (input.vehicle?.number?.trim()) prepareVehicle(input.vehicle);
     if (await CustomerModel.findByPhone(prisma, input.phone)) {
       throw conflict('A customer with this phone number already exists. Please log in instead.');
     }
+    if (input.vehicle?.number?.trim()) await assertPlateAvailable(prisma, prepareVehicle(input.vehicle).numberKey);
     const referral = input.referralCode?.trim();
     if (referral) {
       if (referral === input.phone) throw badRequest('You cannot refer yourself.');
@@ -60,6 +60,7 @@ export const CustomerService = {
         if (await CustomerModel.findByPhone(tx, input.phone)) {
           throw conflict('A customer with this phone number already exists.');
         }
+        if (vehicle) await assertPlateAvailable(tx, vehicle.numberKey);
         // Spent in the same transaction as the account, so if anything below fails the code is still usable.
         if (input.consumeOtpId && !(await OtpModel.consume(tx, input.consumeOtpId))) throw badRequest(OTP_EXPIRED);
 
@@ -99,7 +100,11 @@ export const CustomerService = {
         return created;
       });
     } catch (error) {
-      if (isUniqueViolation(error)) throw conflict('A customer with this phone number already exists.');
+      if (isUniqueViolation(error)) {
+        // Two sign-ups racing: work out which of the two unique rules (phone, or the vehicle plate) was hit.
+        if (vehicle && !(await CustomerModel.findByPhone(prisma, input.phone))) throw conflict(PLATE_ON_OTHER_PROFILE);
+        throw conflict('A customer with this phone number already exists.');
+      }
       throw error;
     }
   },

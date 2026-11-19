@@ -7,6 +7,9 @@ export const VehicleModel = {
   findOwned: (db: Db, customerId: string, vehicleId: string) =>
     db.vehicle.findFirst({ where: { id: vehicleId, customerId } }),
 
+  /** Whoever holds this plate (a plate belongs to exactly one customer). */
+  findByKey: (db: Db, numberKey: string) => db.vehicle.findUnique({ where: { numberKey } }),
+
   create: (db: Db, customerId: string, data: { model: string; number: string; numberKey: string }) =>
     db.vehicle.create({ data: { customerId, ...data } }),
 
